@@ -16,6 +16,7 @@ syn match   gdDelimiter   "\V(\|)\|[\|]\|{\|}"
 syn keyword gdStatement   break continue pass return
 syn keyword gdKeyword     class extends tool signal func self
                         \ static const enum var onready export setget
+syn keyword gdBoolean     true false
 
 syn match   gdMember   "\v<(\.)@<=[a-z_]+\w*>"
 syn match   gdFunction "\v<\w*>(\()@="
@@ -55,6 +56,7 @@ hi def link gdOperator    Operator
 hi def link gdDelimiter   Delimiter
 hi def link gdStatement   Statement
 hi def link gdKeyword     Keyword
+hi def link gdBoolean     Boolean
 
 hi def link gdMember   Identifier
 hi def link gdFunction Function
