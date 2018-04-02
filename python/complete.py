@@ -235,10 +235,12 @@ def GetType():
     # Search for 'extends' statement starting from the top.
     for i in range(1, int(vim.eval("line('$')"))):
         line = vim.eval("getline({})".format(i))
+        if not line.strip():
+            continue
         m = re.search("(?<=^extends)\s+\w+", line)
         if m:
             return m.group(0).strip()
-        elif not line.isspace() and not re.match("^\s*tool\s*$", line):
+        elif not re.match("^\s*tool\s*$", line):
             # Give up when encountering a line that isn't 'extends' or 'tool'.
             return None
 
