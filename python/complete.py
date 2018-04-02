@@ -32,6 +32,27 @@ except ImportError:
 # - @GlobalScope.xml
 # - Built-in types.
 
+# TODO show global scope
+# This includes @GDScript and @GlobalScope
+
+# TODO add special completion for 'self'
+# Completion in this context is like completing global scope, but only items from
+# the extended class are shown.
+
+# TODO complete local vars and function args.
+# Possible implementation:
+# - From the completion point, look backwards for 'var' and 'const' declns.
+#   Only match declns of the same or less indent than the current line.
+# - Also search for 'func' and show function arguments IF the the current line
+#   is in that function. Stop looking after finding any line starting with 'func'
+
+# TODO recursive token completion.
+# e.g. 'Sprite.texture.get_data().*' should examine Sprite for the type of
+# 'texture', which is then examined for the type of 'get_data', and so on.
+# Use a recursive function that starts with the right-most token and works
+# backwards from there. Take into account things like
+# ignoring everything inside function parentheses.
+
 # Flags for selecting what kind of completion items to add.
 # There are probably better ways to do this but I'm lazy.
 LOCAL = 1
@@ -52,14 +73,22 @@ project_dir = None
 def GDScriptComplete():
     base = vim.eval("a:base")
 
-    # Take into account the user's case sensitivity settings.
-    ignorecase = int(vim.eval("&ignorecase"))
-    smartcase = int(vim.eval("&smartcase"))
-    if ignorecase and (not smartcase or not any(x.isupper() for x in base)):
-        flags = re.I
+    # Skip regex checks if 'base' is empty.
+    # This (probably) helps speed things up when using a completion framework
+    # like Deoplete that does it's own searching.
+    # It's entirely possible that empty regex matches are optimized out, in
+    # which case this is entirely unnecessary.
+    if base:
+        # Take into account the user's case sensitivity settings.
+        ignorecase = int(vim.eval("&ignorecase"))
+        smartcase = int(vim.eval("&smartcase"))
+        if ignorecase and (not smartcase or not any(x.isupper() for x in base)):
+            flags = re.I
+        else:
+            flags = 0
+        base_pattern = re.compile(base, flags)
     else:
-        flags = 0
-    base_pattern = re.compile(base, flags)
+        base_pattern = None
 
     completions = []
     c_name = GetType()
@@ -139,28 +168,28 @@ def AddMemberCompletions(completions, c, pattern):
     if not c:
         return
     for member in c["members"]:
-        if not pattern.match(member["name"]):
+        if pattern and not pattern.match(member["name"]):
             continue
         completion = {
                 "word": member["name"],
                 "abbr": "{}.{}".format(c["name"], member["name"]),
                 "kind": member["type"],
                 "dup": 1,
-                "icase": int(pattern.flags & re.I) }
+                "icase": int(pattern.flags & re.I if pattern else 0) }
         completions.append(completion)
 
 def AddConstantCompletions(completions, c, pattern):
     if not c:
         return
     for constant in c["constants"]:
-        if not pattern.match(constant["name"]):
+        if pattern and not pattern.match(constant["name"]):
             continue
         completion = {
                 "word": constant["name"],
                 "abbr": "{}.{}".format(c["name"], constant["name"]),
                 "kind": constant["type"],
                 "dup": 1,
-                "icase": int(pattern.flags & re.I) }
+                "icase": int(pattern.flags & re.I if pattern else 0) }
         if "value" in constant:
             completion["abbr"] += " = {}".format(constant["value"])
         completions.append(completion)
@@ -171,7 +200,7 @@ def AddMethodCompletions(completions, c, pattern, complete_args):
         return
     c_name = c["name"]
     for method in c["methods"]:
-        if not pattern.match(method["name"]):
+        if pattern and not pattern.match(method["name"]):
             continue
         name = c_name if method["name"] == c_name else "{}.{}".format(c_name, method["name"])
         args = []
@@ -196,7 +225,7 @@ def AddMethodCompletions(completions, c, pattern, complete_args):
                 "abbr": signature,
                 "kind": method["returntype"],
                 "dup": 1,
-                "icase": int(pattern.flags & re.I) }
+                "icase": int(pattern.flags & re.I if pattern else 0) }
         completions.append(completion)
 
 def GetPrecedingType(cursor_pos, depth=0):
