@@ -53,6 +53,14 @@ except ImportError:
 # backwards from there. Take into account things like
 # ignoring everything inside function parentheses.
 
+# TODO don't do completion in certain contexts.
+# - Immediately following 'var', 'const', 'onready', 'for',
+# - Anywhere on a line starting with 'signal' or 'class'.
+# - Anywhere on a line starting with 'func', except immediately following the keyword.
+
+# TODO complete built-in types following 'extends' and 'export'
+# Only complete on 'export' if an open parenthesis is present.
+
 # Flags for selecting what kind of completion items to add.
 # There are probably better ways to do this but I'm lazy.
 LOCAL = 1
@@ -136,7 +144,7 @@ def AddFileCompletions(completions, pattern, subdir):
         files = []
         dir = "{}/{}".format(project_dir, subdir)
         for entry in os.listdir(dir):
-            if not ".import" in entry and pattern.match(entry):
+            if not ".import" in entry and (not pattern or pattern.match(entry)):
                 if os.path.isdir("{}/{}".format(dir, entry)):
                     dirs.append({
                         "word": entry,
