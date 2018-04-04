@@ -145,6 +145,8 @@ def AddFileCompletions(completions, pattern, subdir):
         dirs = []
         files = []
         dir = "{}/{}".format(project_dir, subdir)
+        if not os.path.isdir(dir):
+            return
         for entry in os.listdir(dir):
             if not ".import" in entry and (not pattern or pattern.match(entry)):
                 if os.path.isdir("{}/{}".format(dir, entry)):
