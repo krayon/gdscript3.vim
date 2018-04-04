@@ -133,6 +133,8 @@ def AddFileCompletions(completions, pattern, subdir):
         try:
             while not os.path.isfile("project.godot"):
                 os.chdir("..")
+                if os.getcwd() == "/":
+                    return
             project_dir = os.getcwd()
         except Exception:
             pass
