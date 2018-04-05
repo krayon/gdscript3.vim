@@ -58,8 +58,12 @@ except ImportError:
 # - Anywhere on a line starting with 'signal' or 'class'.
 # - Anywhere on a line starting with 'func', except immediately following the keyword.
 
-# TODO complete built-in types following 'extends' and 'export'
-# Only complete on 'export' if an open parenthesis is present.
+# TODO user variable type hints
+# Variables can change types at any time, so it's a bad idea to make guesses
+# about the current type. A way around this is to let the user explicitly
+# indicate the type of a variable and trust them to only use the variable for
+# that type. Possible hinting format:
+# 'var some_node = $SomeNode # @type(Sprite)
 
 # Flags for selecting what kind of completion items to add.
 # There are probably better ways to do this but I'm lazy.
@@ -72,8 +76,8 @@ ARGS = 16
 # I can't figure out how to get the current Python script's directory in this
 # context, so let's just use the current vim script instead.
 docs_dir = vim.eval("expand('<sfile>:p:h')") + "/../python/godot-docs"
-global_scope = {}
 classes = {}
+class_names = None
 
 # Godot project root directory is cached here.
 project_dir = None
@@ -100,8 +104,6 @@ def GDScriptComplete():
     completions = []
     c_name = GetType()
     c = GetClass(c_name)
-    if not c:
-        return
 
     # Only consider the part of the line before the cursor.
     col_num = int(vim.eval("col('.')"))
@@ -113,6 +115,10 @@ def GDScriptComplete():
         m = re.search("(?<=res://)((\w|-)+/)*$", line)
         if m:
             AddFileCompletions(completions, base_pattern, m.group(0))
+
+    # Show all class names after 'extends' or 'export'
+    elif re.search("^(extends\s+|export\()\s*\w*$", line):
+        AddClassNameCompletions(completions, base_pattern)
 
     # Only show class functions if preceded by 'func'
     elif re.search("^\s*func", line):
@@ -161,6 +167,20 @@ def AddFileCompletions(completions, pattern, subdir):
            completions.append(d)
         for f in files:
             completions.append(f)
+
+def AddClassNameCompletions(completions, pattern):
+    global class_names
+
+    # Gather the names of all classes found in the docs folder.
+    if not class_names:
+        class_names = []
+        for f in os.listdir(docs_dir):
+            if not f.startswith("@"):
+                basename = os.path.basename(f)
+                class_names.append({"word": os.path.splitext(basename)[0]})
+        class_names.sort(key=lambda c: c["word"])
+    for name in class_names:
+        completions.append(name)
 
 def AddCompletions(completions, c, pattern, flags):
     if not c:
