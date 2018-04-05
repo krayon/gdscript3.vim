@@ -81,11 +81,10 @@ project_dir = None
 def GDScriptComplete():
     base = vim.eval("a:base")
 
-    # Skip regex checks if 'base' is empty.
-    # This (probably) helps speed things up when using a completion framework
-    # like Deoplete that does it's own searching.
-    # It's entirely possible that empty regex matches are optimized out, in
-    # which case this is entirely unnecessary.
+    # Skip regex checks if 'base' is empty. This (probably) helps speed things
+    # up when using a completion framework like Deoplete that does it's own
+    # searching.  It's entirely possible that empty regex matches are optimized
+    # out, in which case this is unnecessary.
     if base:
         # Take into account the user's case sensitivity settings.
         ignorecase = int(vim.eval("&ignorecase"))
@@ -104,6 +103,7 @@ def GDScriptComplete():
     if not c:
         return
 
+    # Only consider the part of the line before the cursor.
     col_num = int(vim.eval("col('.')"))
     line = vim.eval("getline('.')")[0:col_num-1]
 
@@ -199,9 +199,10 @@ def AddConstantCompletions(completions, c, pattern):
         completion = {
                 "word": constant["name"],
                 "abbr": "{}.{}".format(c["name"], constant["name"]),
-                "kind": constant["type"],
                 "dup": 1,
                 "icase": int(pattern.flags & re.I if pattern else 0) }
+        if "type" in constant:
+            completion["kind"] = constant["type"]
         if "value" in constant:
             completion["abbr"] += " = {}".format(constant["value"])
         completions.append(completion)
@@ -289,10 +290,17 @@ def ParseClass(name):
                     constant["name"] = attrib["name"]
                     if "enum" in attrib:
                         constant["type"] = attrib["enum"]
-                    else:
-                        constant["type"] = "int"
                     if "value" in attrib:
-                        constant["value"] = int(attrib["value"])
+                        value = attrib["value"]
+                        if not "type" in constant:
+                            # If the value can't be parsed as an int,
+                            # it's probably a float.
+                            try:
+                                int(value)
+                                constant["type"] = "int"
+                            except:
+                                constant["type"] = "float"
+                        constant["value"] = value
                     c["constants"].append(constant)
                 elif elem.tag == "method":
                     current_method = { "arguments": [] }
@@ -318,7 +326,7 @@ def ParseClass(name):
                         current_method["returntype"] = attrib["type"]
             else:
                 elem.clear()
-    except Exception:
+    except:
         return None
     return c
 
