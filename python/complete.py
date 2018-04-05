@@ -177,8 +177,6 @@ def AddCompletions(completions, c, pattern, flags):
         AddCompletions(completions, GetClass(c["inherits"]), pattern, flags)
 
 def AddMemberCompletions(completions, c, pattern):
-    if not c:
-        return
     for member in c["members"]:
         if pattern and not pattern.match(member["name"]):
             continue
@@ -191,8 +189,6 @@ def AddMemberCompletions(completions, c, pattern):
         completions.append(completion)
 
 def AddConstantCompletions(completions, c, pattern):
-    if not c:
-        return
     for constant in c["constants"]:
         if pattern and not pattern.match(constant["name"]):
             continue
@@ -209,8 +205,6 @@ def AddConstantCompletions(completions, c, pattern):
 
 # If 'complete_args' is True, method arguments are added to completions.
 def AddMethodCompletions(completions, c, pattern, complete_args):
-    if not c:
-        return
     c_name = c["name"]
     for method in c["methods"]:
         if pattern and not pattern.match(method["name"]):
