@@ -26,6 +26,7 @@ fun! GDScriptComplete(findstart, base)
             return gdscript_completions
         else
             return []
+        endif
     endif
 endfun
 

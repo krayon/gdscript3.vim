@@ -46,13 +46,6 @@ except ImportError:
 # - Also search for 'func' and show function arguments IF the the current line
 #   is in that function. Stop looking after finding any line starting with 'func'
 
-# TODO recursive token completion.
-# e.g. 'Sprite.texture.get_data().*' should examine Sprite for the type of
-# 'texture', which is then examined for the type of 'get_data', and so on.
-# Use a recursive function that starts with the right-most token and works
-# backwards from there. Take into account things like
-# ignoring everything inside function parentheses.
-
 # TODO don't do completion in certain contexts.
 # - Immediately following 'var', 'const', 'onready', 'for',
 # - Anywhere on a line starting with 'signal' or 'class'.
@@ -64,6 +57,10 @@ except ImportError:
 # indicate the type of a variable and trust them to only use the variable for
 # that type. Possible hinting format:
 # 'var some_node = $SomeNode # @type(Sprite)
+
+# TODO handle constructors separately
+# Constructors and normal methods should usually never be shown together.
+# Only show one or the other depending on the context.
 
 # Flags for selecting what kind of completion items to add.
 # There are probably better ways to do this but I'm lazy.
@@ -102,12 +99,10 @@ def GDScriptComplete():
         base_pattern = None
 
     completions = []
-    c_name = GetType()
-    c = GetClass(c_name)
 
     # Only consider the part of the line before the cursor.
-    col_num = int(vim.eval("col('.')"))
-    line = vim.eval("getline('.')")[0:col_num-1]
+    col_num = int(vim.eval("col('.')")) - 1
+    line = vim.eval("getline('.')")[0:col_num]
 
     # Do file path completion if the cursor is in a string.
     syn_attr = vim.eval("synIDattr(synID(line('.'), col('.')-1, 1), 'name')")
@@ -120,11 +115,18 @@ def GDScriptComplete():
     elif re.search("^(extends\s+|export\()\s*\w*$", line):
         AddClassNameCompletions(completions, base_pattern)
 
-    # Only show class functions if preceded by 'func'
-    elif re.search("^\s*func", line):
-        AddCompletions(completions, c, base_pattern, METHODS | ARGS)
+    elif line and line[-1] == ".":
+        c = GetPrecedingClass(line, col_num-1)
+        if c:
+            AddCompletions(completions, c, base_pattern, MEMBERS | METHODS)
     else:
-        AddCompletions(completions, c, base_pattern, MEMBERS | CONSTANTS | METHODS)
+        c = GetExtendedClass()
+
+        # Only show class functions if preceded by 'func'
+        if re.search("^\s*func", line):
+            AddCompletions(completions, c, base_pattern, METHODS | ARGS)
+        else:
+            AddCompletions(completions, c, base_pattern, MEMBERS | CONSTANTS | METHODS)
 
     vim.command("let gdscript_completions = " + str(completions))
 
@@ -142,7 +144,7 @@ def AddFileCompletions(completions, pattern, subdir):
                 if os.getcwd() == "/":
                     return
             project_dir = os.getcwd()
-        except Exception:
+        except:
             pass
         finally:
             os.chdir(cwd)
@@ -255,10 +257,46 @@ def AddMethodCompletions(completions, c, pattern, complete_args):
                 "icase": int(pattern.flags & re.I if pattern else 0) }
         completions.append(completion)
 
-def GetPrecedingType(cursor_pos, depth=0):
-    pass
+def GetPrecedingClass(line, cursor_pos):
+    start = cursor_pos
+    is_method = False
+    paren_count = 0
+    c = None
+    for i, char in enumerate(line[cursor_pos - 1::-1]):
+        if char == ")":
+            is_method = True
+            paren_count += 1
+        elif char == "(":
+            paren_count -= 1
+            if paren_count == 0:
+                cursor_pos = start - i -1
+                continue
+        elif paren_count == 0 and not char.isidentifier():
+            if char == ".":
+                c = GetPrecedingClass(line, start - i - 1)
+            else:
+                c = GetExtendedClass()
+            break
+    if not c:
+        return None
+    token = line[start - i:cursor_pos]
+    type_name = None
+    if is_method:
+        for method in c["methods"]:
+            if method["name"] == token:
+                type_name = method["returntype"]
+                break
+    else:
+        for member in c["members"]:
+            if member["name"] == token:
+                type_name = member["type"]
+                break
+    if type_name:
+        return GetClass(type_name)
+    else:
+        return None
 
-def GetType():
+def GetExtendedClass():
     # Search for 'extends' statement starting from the top.
     for i in range(1, int(vim.eval("line('$')"))):
         line = vim.eval("getline({})".format(i))
@@ -266,7 +304,7 @@ def GetType():
             continue
         m = re.search("(?<=^extends)\s+\w+", line)
         if m:
-            return m.group(0).strip()
+            return GetClass(m.group(0).strip())
         elif not re.match("^\s*tool\s*$", line):
             # Give up when encountering a line that isn't 'extends' or 'tool'.
             return None
