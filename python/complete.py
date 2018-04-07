@@ -355,7 +355,7 @@ def ParseClass(name):
                         constant["value"] = value
                     c["constants"].append(constant)
                 elif elem.tag == "method":
-                    current_method = { "arguments": [] }
+                    current_method = { "arguments": [], "returntype": "void" }
                     current_method["name"] = attrib["name"]
                     if "qualifiers" in attrib:
                         current_method["qualifiers"] = attrib["qualifiers"]
