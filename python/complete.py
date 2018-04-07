@@ -246,7 +246,7 @@ def AddMethodCompletions(completions, c, pattern, complete_args):
         if complete_args:
             word = "{}({}):".format(method["name"], ", ".join(word_args))
         else:
-            word = "{}".format(method["name"])
+            word = "{}(".format(method["name"])
         # signature = "{} {}({}) {}".format(method["returntype"], name, ", ".join(args), qualifiers)
         signature = "{}({}) {}".format(name, ", ".join(args), qualifiers)
         completion = {
