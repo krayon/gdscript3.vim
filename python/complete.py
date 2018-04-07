@@ -32,9 +32,6 @@ except ImportError:
 # - @GlobalScope.xml
 # - Built-in types.
 
-# TODO show global scope
-# This includes @GDScript and @GlobalScope
-
 # TODO add special completion for 'self'
 # Completion in this context is like completing global scope, but only items from
 # the extended class are shown.
@@ -126,7 +123,11 @@ def GDScriptComplete():
         if re.search("^\s*func", line):
             AddCompletions(completions, c, base_pattern, METHODS | ARGS)
         else:
-            AddCompletions(completions, c, base_pattern, MEMBERS | CONSTANTS | METHODS)
+            flags = MEMBERS | CONSTANTS | METHODS
+            AddCompletions(completions, c, base_pattern, flags)
+            AddCompletions(completions, GetClass("@GDScript"), base_pattern, flags)
+            AddCompletions(completions, GetClass("@GlobalScope"), base_pattern, flags)
+
 
     vim.command("let gdscript_completions = " + str(completions))
 
@@ -258,24 +259,36 @@ def AddMethodCompletions(completions, c, pattern, complete_args):
         completions.append(completion)
 
 # Search a class and all extended classes for a particular method
-def GetMethod(c, name):
+# If 'global_scope' is True, also search in the global scope.
+def GetMethod(c, name, global_scope=False):
     for method in c["methods"]:
         if method["name"] == name:
             return method
     if "inherits" in c:
-        return GetMethod(GetClass(c["inherits"]), name)
+        return GetMethod(GetClass(c["inherits"]), name, global_scope)
+    if global_scope:
+        method = GetMethod(GetClass("@GDScript"), name)
+        if method:
+            return method
+        return GetMethod(GetClass("@GlobalScope"), name)
 
-def GetMember(c, name):
+def GetMember(c, name, global_scope=False):
     for member in c["members"]:
         if member["name"] == name:
             return member
     if "inherits" in c:
-        return GetMember(GetClass(c["inherits"]), name)
+        return GetMember(GetClass(c["inherits"]), name, global_scope)
+    if global_scope:
+        member = GetMember(GetClass("@GDScript"), name)
+        if member:
+            return member
+        return GetMember(GetClass("@GlobalScope"), name)
 
 def GetPrecedingClass(line, cursor_pos):
     start = cursor_pos
     is_method = False
     paren_count = 0
+    search_global = False
     c = None
     for i, char in enumerate(line[cursor_pos - 1::-1]):
         if char == ")":
@@ -286,22 +299,23 @@ def GetPrecedingClass(line, cursor_pos):
             if paren_count == 0:
                 cursor_pos = start - i -1
                 continue
-        elif paren_count == 0 and not char.isalnum() and char != "_":
+        elif paren_count == 0 and not char.isidentifier():
             if char == ".":
                 c = GetPrecedingClass(line, start - i - 1)
             else:
                 c = GetExtendedClass()
+                search_global = True
             break
     if not c:
         return None
     token = line[start - i:cursor_pos]
     type_name = None
     if is_method:
-        method = GetMethod(c, token)
+        method = GetMethod(c, token, search_global)
         if method:
             type_name = method["returntype"]
     else:
-        member = GetMember(c, token)
+        member = GetMember(c, token, search_global)
         if member:
             type_name = member["type"]
     if type_name:
