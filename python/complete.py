@@ -257,6 +257,21 @@ def AddMethodCompletions(completions, c, pattern, complete_args):
                 "icase": int(pattern.flags & re.I if pattern else 0) }
         completions.append(completion)
 
+# Search a class and all extended classes for a particular method
+def GetMethod(c, name):
+    for method in c["methods"]:
+        if method["name"] == name:
+            return method
+    if "inherits" in c:
+        return GetMethod(GetClass(c["inherits"]), name)
+
+def GetMember(c, name):
+    for member in c["members"]:
+        if member["name"] == name:
+            return member
+    if "inherits" in c:
+        return GetMember(GetClass(c["inherits"]), name)
+
 def GetPrecedingClass(line, cursor_pos):
     start = cursor_pos
     is_method = False
@@ -282,15 +297,13 @@ def GetPrecedingClass(line, cursor_pos):
     token = line[start - i:cursor_pos]
     type_name = None
     if is_method:
-        for method in c["methods"]:
-            if method["name"] == token:
-                type_name = method["returntype"]
-                break
+        method = GetMethod(c, token)
+        if method:
+            type_name = method["returntype"]
     else:
-        for member in c["members"]:
-            if member["name"] == token:
-                type_name = member["type"]
-                break
+        member = GetMember(c, token)
+        if member:
+            type_name = member["type"]
     if type_name:
         return GetClass(type_name)
     else:
