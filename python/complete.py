@@ -183,7 +183,8 @@ def AddClassNameCompletions(completions, pattern):
                 class_names.append({"word": os.path.splitext(basename)[0]})
         class_names.sort(key=lambda c: c["word"])
     for name in class_names:
-        completions.append(name)
+        if pattern and pattern.match(name["word"]):
+            completions.append(name)
 
 def AddCompletions(completions, c, pattern, flags):
     if not c:
