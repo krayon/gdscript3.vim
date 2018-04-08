@@ -32,10 +32,6 @@ except ImportError:
 # - @GlobalScope.xml
 # - Built-in types.
 
-# TODO add special completion for 'self'
-# Completion in this context is like completing global scope, but only items from
-# the extended class are shown.
-
 # TODO complete local vars and function args.
 # Possible implementation:
 # - From the completion point, look backwards for 'var' and 'const' declns.
@@ -305,6 +301,11 @@ def GetPrecedingClass(line, cursor_pos):
                 c = GetPrecedingClass(line, start - i - 1)
             else:
                 c = GetExtendedClass()
+                # If the first token is 'self', return only the extended class,
+                # without including the global scope.
+                # A little hacky, but effectively simple I daresay.
+                if line[start - i:cursor_pos] == "self":
+                    return c
                 search_global = True
             break
     if not c:
