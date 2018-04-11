@@ -32,13 +32,6 @@ except ImportError:
 # - @GlobalScope.xml
 # - Built-in types.
 
-# TODO complete local vars and function args.
-# Possible implementation:
-# - From the completion point, look backwards for 'var' and 'const' declns.
-#   Only match declns of the same or less indent than the current line.
-# - Also search for 'func' and show function arguments IF the the current line
-#   is in that function. Stop looking after finding any line starting with 'func'
-
 # TODO don't do completion in certain contexts.
 # - Immediately following 'var', 'const', 'onready', 'for',
 # - Anywhere on a line starting with 'signal' or 'class'.
@@ -50,6 +43,19 @@ except ImportError:
 # indicate the type of a variable and trust them to only use the variable for
 # that type. Possible hinting format:
 # 'var some_node = $SomeNode # @type(Sprite)
+# UPDATE:
+# On second thought, it's probably fine to guess the type of variables that
+# are declared and defined on the same line using a built-in member or function.
+# e.g.:
+# 'var my_var = some_function()'
+# Assuming 'some_function' is built-in, 'my_var' can be assumed to have the type
+# returned by 'some_function'. Most variables will only ever contain a single type
+# in their lifetime.
+#
+# The above hinting format will still be useful in some cases, like where
+# variables aren't declared and defined on the same line, and where $ is used.
+# Guessing the type wherever possible will make things easier for the user.
+# @type(null) can be used to disable completion for that variable entirely.
 
 # TODO handle constructors separately
 # Constructors and normal methods should usually never be shown together.
@@ -120,12 +126,54 @@ def GDScriptComplete():
             AddCompletions(completions, c, base_pattern, METHODS | ARGS)
         else:
             flags = MEMBERS | CONSTANTS | METHODS
+            AddLocalCompletions(completions, base_pattern, line)
             AddCompletions(completions, c, base_pattern, flags)
             AddCompletions(completions, GetClass("@GDScript"), base_pattern, flags)
             AddCompletions(completions, GetClass("@GlobalScope"), base_pattern, flags)
 
 
     vim.command("let gdscript_completions = " + str(completions))
+
+# Add local variables, functions, and function args.
+# Only variables accessible from the current scope are added.
+def AddLocalCompletions(completions, pattern, line):
+    lnum = int(vim.eval("line('.')"))
+    if line.lstrip():
+        indent = int(vim.eval("indent({})".format(lnum)))
+    else:
+        # Remember that only the part of the line up to the cursor is considered.
+        # If that part of the line is empty, but the entire line is not, vim's
+        # indent() function will not return the desired result.
+        # In this case, the cursor pos is used instead.
+        indent = int(vim.eval("col('.')")) - 1
+
+    # Ignore all functions after the first one.
+    found_func = False
+    for prev_lnum in reversed(range(lnum)):
+        line = vim.eval("getline({})".format(prev_lnum)).lstrip()
+        if not line:
+            continue
+        prev_indent = int(vim.eval("indent({})".format(prev_lnum)))
+        if prev_indent > indent:
+            continue
+        if line.startswith("func"):
+            m = re.match("^func\s+(\w+)\(((\w|,|\s)*)\)", line)
+            if m:
+                if not found_func and indent > prev_indent:
+                    found_func = True
+                    for group in m.group(2).split(","):
+                        completions.append({"word": group.strip(), "kind": "(local arg)"})
+                completions.append(
+                        {"word": "{}(".format(m.group(1)),
+                         "abbr": "{}({})".format(m.group(1), m.group(2)),
+                         "kind": "(local func)"})
+                indent = prev_indent
+        elif re.match("^class\s+\w+", line):
+            indent = prev_indent
+        elif line.startswith("var") or line.startswith("const"):
+            m = re.match("(var|const)\s(\w+)", line)
+            if m:
+                completions.append({"word": m.group(2), "kind": "(local {})".format(m.group(1))})
 
 def AddFileCompletions(completions, pattern, subdir):
     global project_dir
