@@ -100,12 +100,12 @@ def GDScriptComplete():
     # Do file path completion if the cursor is in a string.
     syn_attr = vim.eval("synIDattr(synID(line('.'), col('.')-1, 1), 'name')")
     if syn_attr == "gdString":
-        m = re.search("(?<=res://)((\w|-)+/)*$", line)
+        m = re.search("res://(((\w|-)+/)*)$", line)
         if m:
-            AddFileCompletions(completions, base_pattern, m.group(0))
+            AddFileCompletions(completions, base_pattern, m.group(1))
 
     # Show all class names after 'extends' or 'export'
-    elif re.search("^(extends\s+|export\()\s*\w*$", line):
+    elif re.match("(extends\s+|export\()\s*\w*$", line):
         AddClassNameCompletions(completions, base_pattern)
 
     elif line and line[-1] == ".":
@@ -116,7 +116,7 @@ def GDScriptComplete():
         c = GetExtendedClass()
 
         # Only show class functions if preceded by 'func'
-        if re.search("^\s*func", line):
+        if re.match("\s*func", line):
             AddCompletions(completions, c, base_pattern, METHODS | ARGS)
         else:
             flags = MEMBERS | CONSTANTS | METHODS
@@ -331,9 +331,9 @@ def GetExtendedClass():
         line = vim.eval("getline({})".format(i))
         if not line.strip():
             continue
-        m = re.search("(?<=^extends)\s+\w+", line)
+        m = re.match("^extends\s+(\w+)", line)
         if m:
-            return GetClass(m.group(0).strip())
+            return GetClass(m.group(1))
         elif not re.match("^\s*tool\s*$", line):
             # Give up when encountering a line that isn't 'extends' or 'tool'.
             return None
