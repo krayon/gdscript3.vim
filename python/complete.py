@@ -113,6 +113,7 @@ def GDScriptComplete():
             AddCompletions(completions, c, flags)
             AddCompletions(completions, GetClass("@GDScript"), flags)
             AddCompletions(completions, GetClass("@GlobalScope"), flags)
+            AddClassNameCompletions(completions)
 
     # Take into account the user's case sensitivity settings.
     ignorecase = int(vim.eval("&ignorecase"))
