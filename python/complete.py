@@ -352,7 +352,7 @@ def GetPrecedingClass(line, cursor_pos):
         member = GetMember(c, token, search_global)
         if member:
             type_name = member["type"]
-    if type_name:
+    if type_name and type_name != "void":
         return GetClass(type_name)
     else:
         return None
