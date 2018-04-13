@@ -290,11 +290,12 @@ def AddMethodCompletions(completions, c, complete_args):
 # Search a class and all extended classes for a particular method
 # If 'global_scope' is True, also search in the global scope.
 def GetMethod(c, name, global_scope=False):
-    for method in c["methods"]:
-        if method["name"] == name:
-            return method
-    if "inherits" in c:
-        return GetMethod(GetClass(c["inherits"]), name, global_scope)
+    if c:
+        for method in c["methods"]:
+            if method["name"] == name:
+                return method
+        if "inherits" in c:
+            return GetMethod(GetClass(c["inherits"]), name, global_scope)
     if global_scope:
         method = GetMethod(GetClass("@GDScript"), name)
         if method:
@@ -302,11 +303,12 @@ def GetMethod(c, name, global_scope=False):
         return GetMethod(GetClass("@GlobalScope"), name)
 
 def GetMember(c, name, global_scope=False):
-    for member in c["members"]:
-        if member["name"] == name:
-            return member
-    if "inherits" in c:
-        return GetMember(GetClass(c["inherits"]), name, global_scope)
+    if c:
+        for member in c["members"]:
+            if member["name"] == name:
+                return member
+        if "inherits" in c:
+            return GetMember(GetClass(c["inherits"]), name, global_scope)
     if global_scope:
         member = GetMember(GetClass("@GDScript"), name)
         if member:
@@ -340,8 +342,6 @@ def GetPrecedingClass(line, cursor_pos):
                     return c
                 search_global = True
             break
-    if not c:
-        return None
     token = line[start - i:cursor_pos]
     type_name = None
     if is_method:
