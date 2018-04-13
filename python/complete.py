@@ -222,10 +222,10 @@ def AddClassNameCompletions(completions):
         for f in os.listdir(docs_dir):
             if not f.startswith("@"):
                 basename = os.path.basename(f)
-                class_names.append({"word": os.path.splitext(basename)[0]})
-        class_names.sort(key=lambda c: c["word"])
+                class_names.append(os.path.splitext(basename)[0])
+        class_names.sort()
     for name in class_names:
-        completions.append(name)
+        completions.append({"word": name})
 
 def AddCompletions(completions, c, flags):
     if not c:
