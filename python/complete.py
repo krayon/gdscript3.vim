@@ -321,6 +321,13 @@ def GetPrecedingClass(line, cursor_pos):
     paren_count = 0
     search_global = False
     c = None
+
+    # String literal
+    syn_attr = vim.eval("synIDattr(synID(line('.'),\
+            col([line('.'), '{}']), 1), 'name')".format(cursor_pos))
+    if syn_attr == "gdString":
+        return GetClass("String")
+
     for i, char in enumerate(line[cursor_pos - 1::-1]):
         if char == ")":
             is_method = True
