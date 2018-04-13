@@ -198,7 +198,7 @@ def AddFileCompletions(completions, subdir):
         if not os.path.isdir(dir):
             return
         for entry in os.listdir(dir):
-            if not ".import" in entry:
+            if not entry.startswith("."):
                 if os.path.isdir("{}/{}".format(dir, entry)):
                     dirs.append({
                         "word": entry,
