@@ -328,7 +328,7 @@ def GetPrecedingClass(line, cursor_pos):
             if paren_count == 0:
                 cursor_pos = start - i -1
                 continue
-        elif paren_count == 0 and not char.isidentifier():
+        elif paren_count == 0 and not char.isalnum() and char != "_":
             if char == ".":
                 c = GetPrecedingClass(line, start - i - 1)
             else:
