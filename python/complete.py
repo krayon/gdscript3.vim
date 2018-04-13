@@ -80,23 +80,6 @@ project_dir = None
 
 def GDScriptComplete():
     base = vim.eval("a:base")
-
-    # Skip regex checks if 'base' is empty. This (probably) helps speed things
-    # up when using a completion framework like Deoplete that does it's own
-    # searching.  It's entirely possible that empty regex matches are optimized
-    # out, in which case this is unnecessary.
-    if base:
-        # Take into account the user's case sensitivity settings.
-        ignorecase = int(vim.eval("&ignorecase"))
-        smartcase = int(vim.eval("&smartcase"))
-        if ignorecase and (not smartcase or not any(x.isupper() for x in base)):
-            flags = re.I
-        else:
-            flags = 0
-        base_pattern = re.compile(base, flags)
-    else:
-        base_pattern = None
-
     completions = []
 
     # Only consider the part of the line before the cursor.
@@ -108,35 +91,49 @@ def GDScriptComplete():
     if syn_attr == "gdString":
         m = re.search("res://(((\w|-)+/)*)$", line)
         if m:
-            AddFileCompletions(completions, base_pattern, m.group(1))
+            AddFileCompletions(completions, m.group(1))
 
     # Show all class names after 'extends' or 'export'
     elif re.match("(extends\s+|export\()\s*\w*$", line):
-        AddClassNameCompletions(completions, base_pattern)
+        AddClassNameCompletions(completions)
 
     elif line and line[-1] == ".":
         c = GetPrecedingClass(line, col_num-1)
         if c:
-            AddCompletions(completions, c, base_pattern, MEMBERS | METHODS)
+            AddCompletions(completions, c, MEMBERS | METHODS)
     else:
         c = GetExtendedClass()
 
         # Only show class functions if preceded by 'func'
         if re.match("\s*func", line):
-            AddCompletions(completions, c, base_pattern, METHODS | ARGS)
+            AddCompletions(completions, c, METHODS | ARGS)
         else:
             flags = MEMBERS | CONSTANTS | METHODS
-            AddLocalCompletions(completions, base_pattern, line)
-            AddCompletions(completions, c, base_pattern, flags)
-            AddCompletions(completions, GetClass("@GDScript"), base_pattern, flags)
-            AddCompletions(completions, GetClass("@GlobalScope"), base_pattern, flags)
+            AddLocalCompletions(completions, line)
+            AddCompletions(completions, c, flags)
+            AddCompletions(completions, GetClass("@GDScript"), flags)
+            AddCompletions(completions, GetClass("@GlobalScope"), flags)
 
+    # Take into account the user's case sensitivity settings.
+    ignorecase = int(vim.eval("&ignorecase"))
+    smartcase = int(vim.eval("&smartcase"))
+    flags = 0
+    if ignorecase and (not smartcase or not any(x.isupper() for x in base)):
+        flags = re.I
+
+    # Filter completions
+    if base:
+        completions = [c for c in completions if re.match(base, c["word"], flags)]
+
+    for completion in completions:
+        completion["icase"] = int(flags & re.I)
+        completion["dup"] = 1
 
     vim.command("let gdscript_completions = " + str(completions))
 
 # Add local variables, functions, and function args.
 # Only variables accessible from the current scope are added.
-def AddLocalCompletions(completions, pattern, line):
+def AddLocalCompletions(completions, line):
     lnum = int(vim.eval("line('.')"))
     if line.lstrip():
         indent = int(vim.eval("indent({})".format(lnum)))
@@ -175,7 +172,7 @@ def AddLocalCompletions(completions, pattern, line):
             if m:
                 completions.append({"word": m.group(2), "kind": "(local {})".format(m.group(1))})
 
-def AddFileCompletions(completions, pattern, subdir):
+def AddFileCompletions(completions, subdir):
     global project_dir
 
     # Search upwards in the directory tree for 'project.godot',
@@ -201,7 +198,7 @@ def AddFileCompletions(completions, pattern, subdir):
         if not os.path.isdir(dir):
             return
         for entry in os.listdir(dir):
-            if not ".import" in entry and (not pattern or pattern.match(entry)):
+            if not ".import" in entry:
                 if os.path.isdir("{}/{}".format(dir, entry)):
                     dirs.append({
                         "word": entry,
@@ -215,7 +212,7 @@ def AddFileCompletions(completions, pattern, subdir):
         for f in files:
             completions.append(f)
 
-def AddClassNameCompletions(completions, pattern):
+def AddClassNameCompletions(completions):
     global class_names
 
     # Gather the names of all classes found in the docs folder.
@@ -227,44 +224,35 @@ def AddClassNameCompletions(completions, pattern):
                 class_names.append({"word": os.path.splitext(basename)[0]})
         class_names.sort(key=lambda c: c["word"])
     for name in class_names:
-        if not pattern or pattern.match(name["word"]):
-            completions.append(name)
+        completions.append(name)
 
-def AddCompletions(completions, c, pattern, flags):
+def AddCompletions(completions, c, flags):
     if not c:
         return
     if flags & MEMBERS:
-        AddMemberCompletions(completions, c, pattern)
+        AddMemberCompletions(completions, c)
     if flags & METHODS:
-        AddMethodCompletions(completions, c, pattern, flags & ARGS)
+        AddMethodCompletions(completions, c, flags & ARGS)
     if flags & CONSTANTS:
-        AddConstantCompletions(completions, c, pattern)
+        AddConstantCompletions(completions, c)
 
     # Recursively add inherited classes.
     if "inherits" in c:
-        AddCompletions(completions, GetClass(c["inherits"]), pattern, flags)
+        AddCompletions(completions, GetClass(c["inherits"]), flags)
 
-def AddMemberCompletions(completions, c, pattern):
+def AddMemberCompletions(completions, c):
     for member in c["members"]:
-        if pattern and not pattern.match(member["name"]):
-            continue
         completion = {
                 "word": member["name"],
                 "abbr": "{}.{}".format(c["name"], member["name"]),
-                "kind": member["type"],
-                "dup": 1,
-                "icase": int(pattern.flags & re.I if pattern else 0) }
+                "kind": member["type"] }
         completions.append(completion)
 
-def AddConstantCompletions(completions, c, pattern):
+def AddConstantCompletions(completions, c):
     for constant in c["constants"]:
-        if pattern and not pattern.match(constant["name"]):
-            continue
         completion = {
                 "word": constant["name"],
-                "abbr": "{}.{}".format(c["name"], constant["name"]),
-                "dup": 1,
-                "icase": int(pattern.flags & re.I if pattern else 0) }
+                "abbr": "{}.{}".format(c["name"], constant["name"])}
         if "type" in constant:
             completion["kind"] = constant["type"]
         if "value" in constant:
@@ -272,11 +260,9 @@ def AddConstantCompletions(completions, c, pattern):
         completions.append(completion)
 
 # If 'complete_args' is True, method arguments are added to completions.
-def AddMethodCompletions(completions, c, pattern, complete_args):
+def AddMethodCompletions(completions, c, complete_args):
     c_name = c["name"]
     for method in c["methods"]:
-        if pattern and not pattern.match(method["name"]):
-            continue
         name = c_name if method["name"] == c_name else "{}.{}".format(c_name, method["name"])
         args = []
         if complete_args:
@@ -298,9 +284,7 @@ def AddMethodCompletions(completions, c, pattern, complete_args):
         completion = {
                 "word": word,
                 "abbr": signature,
-                "kind": method["returntype"],
-                "dup": 1,
-                "icase": int(pattern.flags & re.I if pattern else 0) }
+                "kind": method["returntype"]}
         completions.append(completion)
 
 # Search a class and all extended classes for a particular method
