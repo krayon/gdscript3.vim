@@ -98,9 +98,12 @@ def GDScriptComplete():
         AddClassNameCompletions(completions)
 
     elif line and line[-1] == ".":
-        c = GetPrecedingClass(line, col_num-1)
+        (c, is_static) = GetPrecedingClass(line, col_num-1, completions)
         if c:
-            AddCompletions(completions, c, MEMBERS | METHODS)
+            if is_static:
+                AddCompletions(completions, c, CONSTANTS)
+            else:
+                AddCompletions(completions, c, MEMBERS | METHODS)
     else:
         c = GetExtendedClass()
 
@@ -213,7 +216,7 @@ def AddFileCompletions(completions, subdir):
         for f in files:
             completions.append(f)
 
-def AddClassNameCompletions(completions):
+def EnsureClassNames():
     global class_names
 
     # Gather the names of all classes found in the docs folder.
@@ -224,6 +227,10 @@ def AddClassNameCompletions(completions):
                 basename = os.path.basename(f)
                 class_names.append(os.path.splitext(basename)[0])
         class_names.sort()
+
+def AddClassNameCompletions(completions):
+    EnsureClassNames()
+    global class_names
     for name in class_names:
         completions.append({"word": name})
 
@@ -316,7 +323,10 @@ def GetMember(c, name, global_scope=False):
             return member
         return GetMember(GetClass("@GlobalScope"), name)
 
-def GetPrecedingClass(line, cursor_pos):
+# Returns a tuple (dict, bool).
+# The first element is the class dict.
+# The second element indicates whether the class is being statically accessed.
+def GetPrecedingClass(line, cursor_pos, completions):
     start = cursor_pos
     is_method = False
     paren_count = 0
@@ -327,7 +337,7 @@ def GetPrecedingClass(line, cursor_pos):
     syn_attr = vim.eval("synIDattr(synID(line('.'),\
             col([line('.'), '{}']), 1), 'name')".format(cursor_pos))
     if syn_attr == "gdString":
-        return GetClass("String")
+        return (GetClass("String"), False)
 
     for i, char in enumerate(line[cursor_pos - 1::-1]):
         if char == ")":
@@ -340,18 +350,21 @@ def GetPrecedingClass(line, cursor_pos):
                 continue
         elif paren_count == 0 and not char.isalnum() and char != "_":
             if char == ".":
-                c = GetPrecedingClass(line, start - i - 1)
+                c = GetPrecedingClass(line, start - i - 1, completions)[0]
             else:
                 c = GetExtendedClass()
                 # If the first token is 'self', return only the extended class,
                 # without including the global scope.
                 # A little hacky, but effectively simple I daresay.
                 if line[start - i:cursor_pos] == "self":
-                    return c
+                    return (c, False)
                 search_global = True
             break
     token = line[start - i:cursor_pos]
     type_name = None
+    EnsureClassNames()
+    if search_global and token in class_names:
+        return (GetClass(token), True)
     if is_method:
         method = GetMethod(c, token, search_global)
         if method:
@@ -361,9 +374,9 @@ def GetPrecedingClass(line, cursor_pos):
         if member:
             type_name = member["type"]
     if type_name and type_name != "void":
-        return GetClass(type_name)
+        return (GetClass(type_name), False)
     else:
-        return None
+        return (None, False)
 
 def GetExtendedClass():
     # Search for 'extends' statement starting from the top.
