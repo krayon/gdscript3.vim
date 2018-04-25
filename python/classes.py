@@ -210,7 +210,10 @@ class GodotMethod:
         self._return_type = attrib.get("enum", attrib.get("type", "void"))
 
     def _finish(self, c_name):
-        name = c_name if self._name == c_name else "{}.{}".format(c_name, self._name)
+        if c_name.startswith("@") or self._name == c_name:
+            name = self._name
+        else:
+            name = "{}.{}".format(c_name, self._name)
         qualifiers = self._qualifiers if self._qualifiers else ""
 
         def map_arg(arg):
@@ -283,9 +286,13 @@ class GodotMember:
     def __init__(self, attrib, c_name):
         self._name = attrib["name"]
         self._type = attrib.get("enum", attrib["type"])
+        if c_name.startswith("@"):
+            abbr = self._name
+        else:
+            abbr = "{}.{}".format(c_name, self._name)
         self._completion = {
             "word": self._name,
-            "abbr": "{}.{}".format(c_name, self._name),
+            "abbr": abbr,
             "kind": self._type,
             "dup": 1,
         }
@@ -305,9 +312,13 @@ class GodotConstant:
         self._name = attrib["name"]
         self._type = attrib.get("enum")
         self._value = attrib.get("value")
+        if c_name.startswith("@"):
+            abbr = self._name
+        else:
+            abbr = "{}.{}".format(c_name, self._name)
         self._completion = {
             "word": self._name,
-            "abbr": "{}.{}".format(c_name, self._name),
+            "abbr": abbr,
             "dup": 1,
         }
         if self._type:
