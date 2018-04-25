@@ -221,8 +221,6 @@ def get_preceding_class(line, cursor_pos):
             break
     token = line[start - i:cursor_pos]
     type_name = None
-    if search_global and classes.is_class(token):
-        return (classes.get_class(token), True)
     if is_method:
         method = c.get_method(token, search_parent=True)
         if not method and search_global:
@@ -235,6 +233,8 @@ def get_preceding_class(line, cursor_pos):
             member = classes.get_global_scope().get_member(token)
         if member:
             type_name = member.get_type()
+        elif search_global and classes.is_class(token):
+            return (classes.get_class(token), True)
     if type_name and type_name != "void":
         return (classes.get_class(type_name), False)
     else:
