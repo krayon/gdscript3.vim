@@ -24,6 +24,7 @@ class GodotClasses:
                     self._class_names.append(name)
                     if not name in self._classes:
                         self._classes[name] = None
+            self._class_names.sort()
 
     def get_class(self, c_name):
         if not c_name:
