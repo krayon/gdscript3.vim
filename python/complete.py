@@ -7,116 +7,43 @@ try:
 except ImportError:
     import xml.etree.ElementTree as ET
 
-# No preceding tokens:
-# - Show locally defined variables and function arguments in current scope.
-# - Show members and functions of extended class.
-# - Show global scope
-# Preceded by 'func':
-# - Show virtual functions of extended class.
-# Preceded by a built-in type (e.g. Vector2):
-# - Show static functions and consts.
-# - Show all functions and variables?
-# (in string) Preceded by res://:
-# - show files in project.
-
-# Order:
-# - Local variables
-# - Local constants
-# - Local functions (excluding overridden)
-# - Extended class variables
-# - Extended class constants
-# - Extended class functions (excluding virtual?)
-
-# Global scope:
-# - @GDScript.xml
-# - @GlobalScope.xml
-# - Built-in types.
-
-# TODO don't do completion in certain contexts.
-# - Immediately following 'var', 'const', 'onready', 'for',
-# - Anywhere on a line starting with 'signal' or 'class'.
-# - Anywhere on a line starting with 'func', except immediately following the keyword.
-
-# TODO user variable type hints
-# Variables can change types at any time, so it's a bad idea to make guesses
-# about the current type. A way around this is to let the user explicitly
-# indicate the type of a variable and trust them to only use the variable for
-# that type. Possible hinting format:
-# 'var some_node = $SomeNode # @type(Sprite)
-# UPDATE:
-# On second thought, it's probably fine to guess the type of variables that
-# are declared and defined on the same line using a built-in member or function.
-# e.g.:
-# 'var my_var = some_function()'
-# Assuming 'some_function' is built-in, 'my_var' can be assumed to have the type
-# returned by 'some_function'. Most variables will only ever contain a single type
-# in their lifetime.
-#
-# The above hinting format will still be useful in some cases, like where
-# variables aren't declared and defined on the same line, and where $ is used.
-# Guessing the type wherever possible will make things easier for the user.
-# @type(null) can be used to disable completion for that variable entirely.
-
-# TODO handle constructors separately
-# Constructors and normal methods should usually never be shown together.
-# Only show one or the other depending on the context.
-
-# Flags for selecting what kind of completion items to add.
+# Flags for selecting which completion items to add.
 # There are probably better ways to do this but I'm lazy.
-LOCAL = 1
-MEMBERS = 2
+MEMBERS = 1
+CONSTANTS = 2
 METHODS = 4
-CONSTANTS = 8
-ARGS = 16
 
-# I can't figure out how to get the current Python script's directory in this
-# context, so let's just use the current vim script instead.
-docs_dir = vim.eval("expand('<sfile>:p:h')") + "/../python/godot-docs"
-classes = {}
-class_names = None
+classes = GodotClasses()
 
-# Godot project root directory is cached here.
-project_dir = None
-
-def GDScriptComplete():
+def gdscript_complete():
     base = vim.eval("a:base")
     completions = []
 
     # Only consider the part of the line before the cursor.
-    col_num = int(vim.eval("col('.')")) - 1
-    line = vim.eval("getline('.')")[0:col_num]
+    line = get_line()[0:get_col()-1]
 
-    # Do file path completion if the cursor is in a string.
-    syn_attr = vim.eval("synIDattr(synID(line('.'), col('.')-1, 1), 'name')")
-    if syn_attr == "gdString":
-        m = re.search("res://(((\w|-)+/)*)$", line)
-        if m:
-            AddFileCompletions(completions, m.group(1))
-
-    # Show all class names after 'extends' or 'export'
+    if get_syn_attr() == "gdString":
+        # Complete file paths (res://) if cursor is in a string.
+        complete_paths(completions, line)
     elif re.match("(extends\s+|export\()\s*\w*$", line):
-        AddClassNameCompletions(completions)
-
+        # Complete class names following 'extends' or 'export'.
+        complete_class_names(completions)
     elif line and line[-1] == ".":
-        (c, is_static) = GetPrecedingClass(line, col_num-1, completions)
-        if c:
-            if is_static:
-                AddCompletions(completions, c, CONSTANTS)
-            else:
-                AddCompletions(completions, c, MEMBERS | METHODS)
+        # When accessing a value via dot notation, try to guess the type of the
+        # value preceding the dot. This works recursively, so chaining dot
+        # accessors works as expected if all the intermediary values are
+        # built-in members or methods.
+        complete_dot(completions, line)
+    elif re.match("\s*func", line):
+        # Complete functions belonging to the extended type if the cursor is
+        # preceded by the 'func' keyword. In this context, the user might be
+        # trying to override a built-in function, so the entire function
+        # signature is completed including args.
+        complete_funcs_with_args(completions, get_extended_class())
     else:
-        c = GetExtendedClass()
-
-        # Only show class functions if preceded by 'func'
-        if re.match("\s*func", line):
-            AddCompletions(completions, c, METHODS | ARGS)
-        else:
-            flags = MEMBERS | CONSTANTS | METHODS
-            AddLocalCompletions(completions, line)
-            AddCompletions(completions, c, flags)
-            AddCompletions(completions, GetClass("@GDScript"), flags)
-            AddCompletions(completions, GetClass("@GlobalScope"), flags)
-            AddClassNameCompletions(completions)
+        # Complete members/methods of the extended type as well as
+        # global scope and user-defined vars/methods.
+        complete_global(completions)
 
     # Take into account the user's case sensitivity settings.
     ignorecase = int(vim.eval("&ignorecase"))
@@ -131,13 +58,92 @@ def GDScriptComplete():
 
     for completion in completions:
         completion["icase"] = int(flags & re.I)
-        completion["dup"] = 1
 
     vim.command("let gdscript_completions = " + str(completions))
 
-# Add local variables, functions, and function args.
-# Only variables accessible from the current scope are added.
-def AddLocalCompletions(completions, line):
+def add_class_completions(completions, c, flags):
+    def map_fun(x):
+        return x.get_completion()
+
+    if not c:
+        return
+
+    if flags & MEMBERS:
+        completions.extend(map(map_fun, c.iter_members()))
+    if flags & CONSTANTS:
+        completions.extend(map(map_fun, c.iter_constants()))
+    if flags & METHODS:
+        completions.extend(map(map_fun, c.iter_methods()))
+
+    add_class_completions(completions, c.get_parent(), flags)
+
+def complete_paths(completions, line):
+    m = re.search("res://(((\w|-)+/)*)$", line)
+    if m:
+        project_dir = get_project_dir()
+        if not project_dir:
+            return
+        subdir = m.group(1)
+        # Directories and files are grouped and sorted separately.
+        dirs = []
+        files = []
+        dir = "{}/{}".format(project_dir, subdir)
+        if not os.path.isdir(dir):
+            return
+        for entry in os.listdir(dir):
+            if not entry.startswith("."):
+                if os.path.isdir("{}/{}".format(dir, entry)):
+                    dirs.append({
+                        "word": entry,
+                        "abbr": "{}/".format(entry),
+                        "dup": 1,
+                    })
+                else:
+                    files.append({
+                        "word": entry,
+                        "dup": 1,
+                    })
+        dirs.sort(key=lambda c: c["word"])
+        files.sort(key=lambda c: c["word"])
+        for d in dirs:
+            completions.append(d)
+        for f in files:
+            completions.append(f)
+
+def complete_class_names(completions):
+    def map_fun(c_name):
+        return {"word": c_name}
+    completions.extend(map(map_fun, classes.iter_class_names()))
+
+def complete_dot(completions, line):
+    (c, is_static) = get_preceding_class(line, get_col() - 2)
+    if c:
+        if is_static:
+            add_class_completions(completions, c, CONSTANTS)
+        else:
+            add_class_completions(completions, c, MEMBERS | METHODS)
+
+
+def complete_funcs_with_args(completions, c):
+    def map_fun(f):
+        return f.get_completion_with_args()
+    if c:
+        completions.extend(map(map_fun, c.iter_methods()))
+        complete_funcs_with_args(completions, c.get_parent())
+
+
+def complete_global(completions):
+    c = get_extended_class()
+    flags = MEMBERS | CONSTANTS | METHODS
+    complete_user(completions)
+    add_class_completions(completions, c, flags)
+    add_class_completions(completions, classes.get_global_scope(), flags)
+    complete_class_names(completions)
+
+# Gather user-defined vars and funcs.
+# Only
+def complete_user(completions):
+    line = get_line()[0:get_col()-1]
     lnum = int(vim.eval("line('.')"))
     if line.lstrip():
         indent = int(vim.eval("indent({})".format(lnum)))
@@ -146,9 +152,9 @@ def AddLocalCompletions(completions, line):
         # If that part of the line is empty, but the entire line is not, vim's
         # indent() function will not return the desired result.
         # In this case, the cursor pos is used instead.
-        indent = int(vim.eval("col('.')")) - 1
+        indent = get_col() - 1
 
-    # Ignore all functions after the first one.
+    # Ignore all function arguments after the first encountered function.
     found_func = False
     for prev_lnum in reversed(range(lnum)):
         line = vim.eval("getline({})".format(prev_lnum)).lstrip()
@@ -164,10 +170,11 @@ def AddLocalCompletions(completions, line):
                     found_func = True
                     for group in m.group(2).split(","):
                         completions.append({"word": group.strip(), "kind": "(local arg)"})
-                completions.append(
-                        {"word": "{}(".format(m.group(1)),
-                         "abbr": "{}({})".format(m.group(1), m.group(2)),
-                         "kind": "(local func)"})
+                completions.append({
+                    "word": "{}(".format(m.group(1)),
+                    "abbr": "{}({})".format(m.group(1), m.group(2)),
+                    "kind": "(local func)"
+                })
                 indent = prev_indent
         elif re.match("^class\s+\w+", line):
             indent = prev_indent
@@ -176,168 +183,22 @@ def AddLocalCompletions(completions, line):
             if m:
                 completions.append({"word": m.group(2), "kind": "(local {})".format(m.group(1))})
 
-def AddFileCompletions(completions, subdir):
-    global project_dir
 
-    # Search upwards in the directory tree for 'project.godot',
-    # indicating the root of the project.
-    if not project_dir:
-        cwd = os.getcwd()
-        os.chdir(vim.eval("expand('%:p:h')")) # Directory of current file.
-        try:
-            while not os.path.isfile("project.godot"):
-                os.chdir("..")
-                if os.getcwd() == "/":
-                    return
-            project_dir = os.getcwd()
-        except:
-            pass
-        finally:
-            os.chdir(cwd)
-    if project_dir:
-        # Directories and files are grouped and sorted separately.
-        dirs = []
-        files = []
-        dir = "{}/{}".format(project_dir, subdir)
-        if not os.path.isdir(dir):
-            return
-        for entry in os.listdir(dir):
-            if not entry.startswith("."):
-                if os.path.isdir("{}/{}".format(dir, entry)):
-                    dirs.append({
-                        "word": entry,
-                        "abbr": "{}/".format(entry) })
-                else:
-                    files.append({"word": entry})
-        dirs.sort(key=lambda c: c["word"])
-        files.sort(key=lambda c: c["word"])
-        for d in dirs:
-           completions.append(d)
-        for f in files:
-            completions.append(f)
 
-def EnsureClassNames():
-    global class_names
-
-    # Gather the names of all classes found in the docs folder.
-    if not class_names:
-        class_names = []
-        for f in os.listdir(docs_dir):
-            if not f.startswith("@"):
-                basename = os.path.basename(f)
-                class_names.append(os.path.splitext(basename)[0])
-        class_names.sort()
-
-def AddClassNameCompletions(completions):
-    EnsureClassNames()
-    global class_names
-    for name in class_names:
-        completions.append({"word": name})
-
-def AddCompletions(completions, c, flags):
-    if not c:
-        return
-    if flags & MEMBERS:
-        AddMemberCompletions(completions, c)
-    if flags & METHODS:
-        AddMethodCompletions(completions, c, flags & ARGS)
-    if flags & CONSTANTS:
-        AddConstantCompletions(completions, c)
-
-    # Recursively add inherited classes.
-    if "inherits" in c:
-        AddCompletions(completions, GetClass(c["inherits"]), flags)
-
-def AddMemberCompletions(completions, c):
-    for member in c["members"]:
-        completion = {
-                "word": member["name"],
-                "abbr": "{}.{}".format(c["name"], member["name"]),
-                "kind": member["type"] }
-        completions.append(completion)
-
-def AddConstantCompletions(completions, c):
-    for constant in c["constants"]:
-        completion = {
-                "word": constant["name"],
-                "abbr": "{}.{}".format(c["name"], constant["name"])}
-        if "type" in constant:
-            completion["kind"] = constant["type"]
-        if "value" in constant:
-            completion["abbr"] += " = {}".format(constant["value"])
-        completions.append(completion)
-
-# If 'complete_args' is True, method arguments are added to completions.
-def AddMethodCompletions(completions, c, complete_args):
-    c_name = c["name"]
-    for method in c["methods"]:
-        name = c_name if method["name"] == c_name else "{}.{}".format(c_name, method["name"])
-        args = []
-        if complete_args:
-            word_args = []
-        for arg in method["arguments"]:
-            args.append("{} {}{}".format(arg["type"], arg["name"],
-                "=" + arg["default"] if "default" in arg else ""))
-            if complete_args:
-                word_args.append(arg["name"])
-        qualifiers = method.get("qualifiers", "")
-        if "vararg" in qualifiers:
-            args.append("...")
-        if complete_args:
-            word = "{}({}):".format(method["name"], ", ".join(word_args))
-        else:
-            word = "{}({}".format(method["name"], ")" if len(args) == 0 else "")
-        # signature = "{} {}({}) {}".format(method["returntype"], name, ", ".join(args), qualifiers)
-        signature = "{}({}) {}".format(name, ", ".join(args), qualifiers)
-        completion = {
-                "word": word,
-                "abbr": signature,
-                "kind": method["returntype"]}
-        completions.append(completion)
-
-# Search a class and all extended classes for a particular method
-# If 'global_scope' is True, also search in the global scope.
-def GetMethod(c, name, global_scope=False):
-    if c:
-        for method in c["methods"]:
-            if method["name"] == name:
-                return method
-        if "inherits" in c:
-            return GetMethod(GetClass(c["inherits"]), name, global_scope)
-    if global_scope:
-        method = GetMethod(GetClass("@GDScript"), name)
-        if method:
-            return method
-        return GetMethod(GetClass("@GlobalScope"), name)
-
-def GetMember(c, name, global_scope=False):
-    if c:
-        for member in c["members"]:
-            if member["name"] == name:
-                return member
-        if "inherits" in c:
-            return GetMember(GetClass(c["inherits"]), name, global_scope)
-    if global_scope:
-        member = GetMember(GetClass("@GDScript"), name)
-        if member:
-            return member
-        return GetMember(GetClass("@GlobalScope"), name)
-
-# Returns a tuple (dict, bool).
-# The first element is the class dict.
-# The second element indicates whether the class is being statically accessed.
-def GetPrecedingClass(line, cursor_pos, completions):
+# Examine the token(s) before a dot accessor and try to figure out the type.
+# Returns a tuple (GodotClass, bool).
+# The bool indicates whether the class is being statically accessed.
+# This whole thing is pretty messy but I'm afraid to change any of it.
+def get_preceding_class(line, cursor_pos):
     start = cursor_pos
     is_method = False
     paren_count = 0
     search_global = False
     c = None
 
-    # String literal
-    syn_attr = vim.eval("synIDattr(synID(line('.'),\
-            col([line('.'), '{}']), 1), 'name')".format(cursor_pos))
-    if syn_attr == "gdString":
-        return (GetClass("String"), False)
+    # Dot accessor after string literal.
+    if get_syn_attr(col=cursor_pos) == "gdString":
+        return (classes.get_class("String"), False)
 
     for i, char in enumerate(line[cursor_pos - 1::-1]):
         if char == ")":
@@ -350,35 +211,36 @@ def GetPrecedingClass(line, cursor_pos, completions):
                 continue
         elif paren_count == 0 and not char.isalnum() and char != "_":
             if char == ".":
-                c = GetPrecedingClass(line, start - i - 1, completions)[0]
+                c = get_preceding_class(line, start - i - 1)[0]
             else:
-                c = GetExtendedClass()
-                # If the first token is 'self', return only the extended class,
-                # without including the global scope.
-                # A little hacky, but effectively simple I daresay.
+                c = get_extended_class()
+                # Complete only extended class after 'self'.
                 if line[start - i:cursor_pos] == "self":
                     return (c, False)
                 search_global = True
             break
     token = line[start - i:cursor_pos]
     type_name = None
-    EnsureClassNames()
-    if search_global and token in class_names:
-        return (GetClass(token), True)
+    if search_global and classes.is_class(token):
+        return (classes.get_class(token), True)
     if is_method:
-        method = GetMethod(c, token, search_global)
+        method = c.get_method(token, search_parent=True)
+        if not method and search_global:
+            method = classes.get_global_scope().get_method(token)
         if method:
-            type_name = method["returntype"]
+            type_name = method.get_return_type()
     else:
-        member = GetMember(c, token, search_global)
+        member = c.get_member(token, search_parent=True)
+        if not member and search_global:
+            member = classes.get_global_scope().get_member(token)
         if member:
-            type_name = member["type"]
+            type_name = member.get_type()
     if type_name and type_name != "void":
-        return (GetClass(type_name), False)
+        return (classes.get_class(type_name), False)
     else:
         return (None, False)
 
-def GetExtendedClass():
+def get_extended_class():
     # Search for 'extends' statement starting from the top.
     for i in range(1, int(vim.eval("line('$')"))):
         line = vim.eval("getline({})".format(i))
@@ -386,81 +248,44 @@ def GetExtendedClass():
             continue
         m = re.match("^extends\s+(\w+)", line)
         if m:
-            return GetClass(m.group(1))
+            return classes.get_class(m.group(1))
         elif not re.match("^\s*tool\s*$", line):
             # Give up when encountering a line that isn't 'extends' or 'tool'.
             return None
 
-def GetClass(name):
-    if not name or name not in classes:
-        classes[name] = ParseClass(name)
-    return classes[name]
+def get_line():
+    return vim.eval("getline('.')")
 
-# Load the XML doc file for the given class and parse the relevant parts into a dict.
-def ParseClass(name):
-    if not name:
-        return
-    path = "{}/{}.xml".format(docs_dir, name)
-    try:
-        c = {"members": [], "constants": [], "methods": []}
-        current_method = None
-        for event, elem in ET.iterparse(path, events=("start", "end")):
-            attrib = elem.attrib
-            if event == "start":
-                if elem.tag == "class":
-                    c["name"] = attrib["name"]
-                    if "inherits" in attrib:
-                        c["inherits"] = attrib["inherits"]
-                elif elem.tag == "member":
-                    member = {}
-                    member["name"] = attrib["name"]
-                    if "enum" in attrib:
-                        member["type"] = attrib["enum"]
-                    else:
-                        member["type"] = attrib["type"]
-                    c["members"].append(member)
-                elif elem.tag == "constant":
-                    constant = {}
-                    constant["name"] = attrib["name"]
-                    if "enum" in attrib:
-                        constant["type"] = attrib["enum"]
-                    if "value" in attrib:
-                        value = attrib["value"]
-                        if not "type" in constant:
-                            # If the value can't be parsed as an int,
-                            # it's probably a float.
-                            try:
-                                int(value)
-                                constant["type"] = "int"
-                            except:
-                                constant["type"] = "float"
-                        constant["value"] = value
-                    c["constants"].append(constant)
-                elif elem.tag == "method":
-                    current_method = { "arguments": [], "returntype": "void" }
-                    current_method["name"] = attrib["name"]
-                    if "qualifiers" in attrib:
-                        current_method["qualifiers"] = attrib["qualifiers"]
-                    c["methods"].append(current_method)
-                elif elem.tag == "argument":
-                    args = current_method["arguments"]
-                    arg = {}
-                    arg["name"] = attrib["name"]
-                    arg["type"] = attrib["type"]
-                    if "default" in attrib:
-                        arg["default"] = attrib["default"]
-                    index = int(attrib["index"])
-                    while len(args) <= index:
-                        args.append(None)
-                    args[index] = arg
-                elif elem.tag == "return":
-                    if "enum" in attrib:
-                        current_method["returntype"] = attrib["enum"]
-                    else:
-                        current_method["returntype"] = attrib["type"]
-            else:
-                elem.clear()
-    except:
-        return None
-    return c
+
+def get_col():
+    return int(vim.eval("col('.')"))
+
+def get_syn_attr(line=None, col=None):
+    if not line:
+        line = "."
+    if not col:
+        col = "."
+    return vim.eval("synIDattr(synID(line('{}'), col('{}')-1, 1), 'name')".
+            format(line, col))
+
+
+# Get the root directory of the Godot project containing the current script.
+# This is for completing 'res://'
+_project_dir = None
+def get_project_dir():
+    global _project_dir
+    if not _project_dir:
+        cwd = os.getcwd()
+        os.chdir(vim.eval("expand('%:p:h')")) # Directory of current file.
+        try:
+            while not os.path.isfile("project.godot"):
+                os.chdir("..")
+                if os.getcwd() == "/":
+                    return
+            _project_dir = os.getcwd()
+        except:
+            pass
+        finally:
+            os.chdir(cwd)
+    return _project_dir
 

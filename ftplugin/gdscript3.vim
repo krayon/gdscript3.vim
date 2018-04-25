@@ -4,6 +4,7 @@ if !has("python3")
     finish
 endif
 
+execute 'py3file ' . expand('<sfile>:p:h') . "/../python/classes.py"
 execute 'py3file ' . expand('<sfile>:p:h') . "/../python/complete.py"
 
 fun! GDScriptComplete(findstart, base)
@@ -21,7 +22,7 @@ fun! GDScriptComplete(findstart, base)
         endwhile
         return start
     else
-        py3 GDScriptComplete()
+        py3 gdscript_complete()
         if exists("gdscript_completions")
             return gdscript_completions
         else
