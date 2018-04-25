@@ -112,7 +112,7 @@ def complete_paths(completions, line):
 
 def complete_class_names(completions):
     def map_fun(c_name):
-        return {"word": c_name}
+        return {"word": c_name, "dup": 1}
     completions.extend(map(map_fun, classes.iter_class_names()))
 
 def complete_dot(completions, line):
