@@ -1,11 +1,19 @@
 setlocal commentstring=#\ %s
 
-if !has("python3")
+if !has("python3") && !has("python")
     finish
 endif
 
-execute 'py3file ' . expand('<sfile>:p:h') . "/../python/classes.py"
-execute 'py3file ' . expand('<sfile>:p:h') . "/../python/complete.py"
+if has("python3")
+    let s:pyfile_cmd = "py3file"
+    let s:py_cmd = "py3"
+else
+    let s:pyfile_cmd = "pyfile"
+    let s:py_cmd = "py"
+endif
+
+execute s:pyfile_cmd . expand('<sfile>:p:h') . "/../python/classes.py"
+execute s:pyfile_cmd . expand('<sfile>:p:h') . "/../python/complete.py"
 
 fun! GDScriptComplete(findstart, base)
     if a:findstart == 1
@@ -22,7 +30,7 @@ fun! GDScriptComplete(findstart, base)
         endwhile
         return start
     else
-        py3 gdscript_complete()
+        execute s:py_cmd . " gdscript_complete()"
         if exists("gdscript_completions")
             return gdscript_completions
         else
