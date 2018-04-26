@@ -63,13 +63,11 @@ class GodotClasses:
                     elif elem.tag == "method":
                         # Encountered a non-constructor, so stop searching.
                         if attrib["name"] != c_name:
-                            print(c_name)
                             break
                         method = GodotMethod(attrib)
                         constructors.append(method)
                         global_scope._methods_lookup[method._name] = method
                         current_method = method
-                        print(method._name)
                     elif elem.tag == "argument":
                         current_method._add_arg(attrib)
                     elif elem.tag == "return":
