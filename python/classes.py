@@ -254,7 +254,7 @@ class GodotMethod:
         qualifiers = self._qualifiers if self._qualifiers else ""
 
         def map_arg(arg):
-            default = "= {}".format(arg._default) if arg._default else ""
+            default = "={}".format(arg._default) if arg._default else ""
             return "{} {}{}".format(arg._type, arg._name, default)
 
         # Normal completion
