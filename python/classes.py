@@ -7,6 +7,14 @@ except ImportError:
 
 _DOCS_DIR = vim.eval("expand('<sfile>:p:h')") + "/../python/godot-docs"
 
+_BUILT_IN_TYPES = [
+    "AABB", "Array", "Basis", "bool", "Color", "Dictionary", "float",
+    "int", "Nil", "NodePath", "Plane", "PoolByteArray", "PoolColorArray",
+    "PoolIntArray", "PoolRealArray", "PoolStringArray", "PoolVector2Array",
+    "PoolVector3Array", "Quat", "Rect2", "RID", "String", "Transform2D",
+    "Transform", "Vector2", "Vector3"
+    ]
+
 # Loads and stores Godot class info.
 # Everything is loaded on demand, so there's no overhead if completion isn't used.
 class GodotClasses:
@@ -49,33 +57,32 @@ class GodotClasses:
         # e.g. Vector2(). All other types are created via "new()", which for
         # our purposes isn't considered a constructor.
         constructors = []
-        for f in os.listdir(_DOCS_DIR):
-            path = "{}/{}".format(_DOCS_DIR, f)
+        for c_name in _BUILT_IN_TYPES:
+            path = "{}/{}.xml".format(_DOCS_DIR, c_name)
             current_method = None
-            c_name = None
-            for event, elem in ET.iterparse(path, events=("start", "end")):
-                attrib = elem.attrib
-                if event == "start":
-                    if elem.tag == "class":
-                        if attrib.get("category") != "Built-In Types":
-                            break
-                        c_name = attrib["name"]
-                    elif elem.tag == "method":
-                        # Encountered a non-constructor, so stop searching.
-                        if attrib["name"] != c_name:
-                            break
-                        method = GodotMethod(attrib)
-                        constructors.append(method)
-                        global_scope._methods_lookup[method._name] = method
-                        current_method = method
-                    elif elem.tag == "argument":
-                        current_method._add_arg(attrib)
-                    elif elem.tag == "return":
-                        current_method._set_return_type(attrib)
-                else:
-                    if elem.tag == "method":
-                        current_method._finish(c_name)
-                    elem.clear()
+
+            try:
+                for event, elem in ET.iterparse(path, events=("start", "end")):
+                    attrib = elem.attrib
+                    if event == "start":
+                        if elem.tag == "method":
+                            # Encountered a non-constructor, so stop searching.
+                            if attrib["name"] != c_name:
+                                break
+                            method = GodotMethod(attrib)
+                            constructors.append(method)
+                            global_scope._methods_lookup[method._name] = method
+                            current_method = method
+                        elif elem.tag == "argument":
+                            current_method._add_arg(attrib)
+                        elif elem.tag == "return":
+                            current_method._set_return_type(attrib)
+                    else:
+                        if elem.tag == "method":
+                            current_method._finish(c_name)
+                        elem.clear()
+            except IOError:
+                pass
 
         global_scope._methods.extend(sorted(constructors, key=lambda m: m._name))
         self._global_scope = global_scope
