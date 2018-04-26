@@ -23,7 +23,11 @@ def gdscript_complete():
     col = get_col() - 1
     line = get_line()[0:col]
 
-    if get_syn_attr() == "gdString":
+    syn_attr = get_syn_attr()
+    if syn_attr == "gdComment":
+        # Don't complete in comments
+        return
+    elif syn_attr == "gdString":
         # Complete file paths (res://) if cursor is in a string.
         complete_paths(completions, line)
     elif re.match("(extends\s+|export\()\s*\w*$", line):
