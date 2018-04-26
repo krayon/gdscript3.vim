@@ -130,6 +130,15 @@ def complete_dot(completions, line):
     (c, is_static) = get_preceding_class(line, get_col() - 2)
     if c:
         if is_static:
+            # Manually add 'new()'
+            # Look for a comment in 'get_preceding_class()' for an
+            # explanation of why this method is such a pain to handle.
+            if not c.is_built_in():
+                completions.append({
+                    "word": "new()",
+                    "abbr": "{}.new()".format(c.get_name()),
+                    "kind": "{}".format(c.get_name()),
+                })
             add_class_completions(completions, c, CONSTANTS)
         else:
             add_class_completions(completions, c, MEMBERS | METHODS)
@@ -220,7 +229,16 @@ def get_preceding_class(line, cursor_pos):
                 continue
         if paren_count <= 0 and not char.isalnum() and char != "_":
             if char == ".":
-                c = get_preceding_class(line, start - i - 1)[0]
+                (c, is_static) = get_preceding_class(line, start - i - 1)
+                # Each non built-in type has a static 'new()' method.
+                # It's actually the ONLY static method as far as I know, since
+                # GDScript doesn't seem to support static methods normally.
+                # It's also not listed in the XML docs. Because of all that,
+                # there's no clean way to handle it, so we have to resort to
+                # devilish hackery.
+                token = line[start - i:cursor_pos]
+                if is_static and token == "new" and not c.is_built_in():
+                    return (c, False)
             else:
                 c = get_extended_class()
                 # Complete only extended class after 'self'.

@@ -116,6 +116,7 @@ class GodotClass:
 
         self._name = c_name
         self._parent = None
+        self._is_built_in = False
 
         self._members = []
         self._constants = []
@@ -137,6 +138,7 @@ class GodotClass:
                             self._parent = classes.get_class(attrib["inherits"])
                         except IOError:
                             pass
+                    self._is_built_in = attrib.get("category") == "Built-In Types"
                 elif elem.tag == "member":
                     member = GodotMember(attrib, c_name)
                     self._members.append(member)
@@ -171,6 +173,9 @@ class GodotClass:
 
     def get_parent(self):
         return self._parent
+
+    def is_built_in(self):
+        return self._is_built_in
 
     def get_member(self, name, search_parent=False):
         member = self._members_lookup.get(name)
