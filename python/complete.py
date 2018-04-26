@@ -20,7 +20,8 @@ def gdscript_complete():
     completions = []
 
     # Only consider the part of the line before the cursor.
-    line = get_line()[0:get_col()-1]
+    col = get_col() - 1
+    line = get_line()[0:col]
 
     if get_syn_attr() == "gdString":
         # Complete file paths (res://) if cursor is in a string.
@@ -33,7 +34,12 @@ def gdscript_complete():
         # value preceding the dot. This works recursively, so chaining dot
         # accessors works as expected if all the intermediary values are
         # built-in members or methods.
-        complete_dot(completions, line)
+
+        # Handle 'self' separately.
+        if re.match("[^a-zA-Z0-9_.]self", line[col-6:col]):
+            complete_self(completions)
+        else:
+            complete_dot(completions, line)
     elif re.match("\s*func", line):
         # Complete functions belonging to the extended type if the cursor is
         # preceded by the 'func' keyword. In this context, the user might be
@@ -115,6 +121,11 @@ def complete_class_names(completions):
         return {"word": c_name, "dup": 1}
     completions.extend(map(map_fun, classes.iter_class_names()))
 
+def complete_self(completions):
+    c = get_extended_class()
+    complete_user(completions)
+    add_class_completions(completions, c, MEMBERS | METHODS)
+
 def complete_dot(completions, line):
     (c, is_static) = get_preceding_class(line, get_col() - 2)
     if c:
@@ -141,7 +152,7 @@ def complete_global(completions):
     complete_class_names(completions)
 
 # Gather user-defined vars and funcs.
-# Only
+# Only items accessible from the current scope are added.
 def complete_user(completions):
     line = get_line()[0:get_col()-1]
     lnum = int(vim.eval("line('.')"))
@@ -182,8 +193,6 @@ def complete_user(completions):
             m = re.match("(var|const)\s(\w+)", line)
             if m:
                 completions.append({"word": m.group(2), "kind": "(local {})".format(m.group(1))})
-
-
 
 # Examine the token(s) before a dot accessor and try to figure out the type.
 # Returns a tuple (GodotClass, bool).
