@@ -26,6 +26,62 @@ class GodotClasses:
                         self._classes[name] = None
             self._class_names.sort()
 
+    def _load_global_scope(self):
+        # Global scope is divided between several XML files, so here we
+        # hackily combine them into a single "class".
+        global_scope = self.get_class("@GlobalScope")
+        gdscript = self.get_class("@GDScript")
+
+        global_scope._members.extend(gdscript._members)
+        global_scope._constants.extend(gdscript._constants)
+        global_scope._methods.extend(gdscript._methods)
+
+        # @GlobalScope doesn't contain any methods, and @GDScript
+        # doesn't contain any members. This means only the constants need
+        # to be sorted after merging, as the other two will be unchanged.
+        global_scope._constants.sort(key=lambda c: c.get_name())
+
+        global_scope._members_lookup.update(gdscript._members_lookup)
+        global_scope._constants_lookup.update(gdscript._constants_lookup)
+        global_scope._methods_lookup.update(gdscript._methods_lookup)
+
+        # Gather constructors. Only built-in types have constructors,
+        # e.g. Vector2(). All other types are created via "new()", which for
+        # our purposes isn't considered a constructor.
+        constructors = []
+        for f in os.listdir(_DOCS_DIR):
+            path = "{}/{}".format(_DOCS_DIR, f)
+            current_method = None
+            c_name = None
+            for event, elem in ET.iterparse(path, events=("start", "end")):
+                attrib = elem.attrib
+                if event == "start":
+                    if elem.tag == "class":
+                        if attrib.get("category") != "Built-In Types":
+                            break
+                        c_name = attrib["name"]
+                    elif elem.tag == "method":
+                        # Encountered a non-constructor, so stop searching.
+                        if attrib["name"] != c_name:
+                            print(c_name)
+                            break
+                        method = GodotMethod(attrib)
+                        constructors.append(method)
+                        global_scope._methods_lookup[method._name] = method
+                        current_method = method
+                        print(method._name)
+                    elif elem.tag == "argument":
+                        current_method._add_arg(attrib)
+                    elif elem.tag == "return":
+                        current_method._set_return_type(attrib)
+                else:
+                    if elem.tag == "method":
+                        current_method._finish(c_name)
+                    elem.clear()
+
+        global_scope._methods.extend(sorted(constructors, key=lambda m: m._name))
+        self._global_scope = global_scope
+
     def get_class(self, c_name):
         if not c_name:
             return None
@@ -40,26 +96,7 @@ class GodotClasses:
 
     def get_global_scope(self):
         if not self._global_scope:
-            # Global scope is divided between several XML files, so here we
-            # hackily combine them into a single "class".
-            global_scope = self.get_class("@GlobalScope")
-            gdscript = self.get_class("@GDScript")
-
-            global_scope._members.extend(gdscript._members)
-            global_scope._constants.extend(gdscript._constants)
-            global_scope._methods.extend(gdscript._methods)
-
-            # @GlobalScope doesn't contain any methods, and @GDScript
-            # doesn't contain any members. This means only the constants need
-            # to be sorted after merging, as the other two will be unchanged.
-            global_scope._constants.sort(key=lambda c: c.get_name())
-
-            global_scope._members_lookup.update(gdscript._members_lookup)
-            global_scope._constants_lookup.update(gdscript._constants_lookup)
-            global_scope._methods_lookup.update(gdscript._methods_lookup)
-
-            del gdscript
-            self._global_scope = global_scope
+            self._load_global_scope()
         return self._global_scope
 
     def iter_class_names(self):
