@@ -187,19 +187,18 @@ def complete_user(completions):
         prev_indent = int(vim.eval("indent({})".format(prev_lnum)))
         if prev_indent > indent:
             continue
-        if line.startswith("func"):
-            m = re.match("^func\s+(\w+)\(((\w|,|\s)*)\)", line)
-            if m:
-                if not found_func and indent > prev_indent:
-                    found_func = True
-                    for group in m.group(2).split(","):
-                        completions.append({"word": group.strip(), "kind": "(local arg)"})
-                completions.append({
-                    "word": "{}(".format(m.group(1)),
-                    "abbr": "{}({})".format(m.group(1), m.group(2)),
-                    "kind": "(local func)"
-                })
-                indent = prev_indent
+        m = re.match("(?:static\s+)?func\s+(\w+)\(((\w|,|\s)*)\)", line)
+        if m:
+            if not found_func and indent > prev_indent:
+                found_func = True
+                for group in m.group(2).split(","):
+                    completions.append({"word": group.strip(), "kind": "(local arg)"})
+            completions.append({
+                "word": "{}(".format(m.group(1)),
+                "abbr": "{}({})".format(m.group(1), m.group(2)),
+                "kind": "(local func)"
+            })
+            indent = prev_indent
         elif re.match("^class\s+\w+", line):
             indent = prev_indent
         elif line.startswith("var") or line.startswith("const"):
@@ -235,8 +234,7 @@ def get_preceding_class(line, cursor_pos):
             if char == ".":
                 (c, is_static) = get_preceding_class(line, start - i - 1)
                 # Each non built-in type has a static 'new()' method.
-                # It's actually the ONLY static method as far as I know, since
-                # GDScript doesn't seem to support static methods normally.
+                # It's actually the ONLY static method on core types that I know of.
                 # It's also not listed in the XML docs. Because of all that,
                 # there's no clean way to handle it, so we have to resort to
                 # devilish hackery.
