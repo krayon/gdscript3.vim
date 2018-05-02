@@ -30,8 +30,11 @@ def gdscript_complete():
     elif syn_attr == "gdString":
         # Complete file paths (res://) if cursor is in a string.
         complete_paths(completions, line)
-    elif re.match("(extends\s+|export\()\s*\w*$", line):
-        # Complete class names following 'extends' or 'export'.
+    elif re.match("extends\s*", line):
+        # Complete class names after 'extends', excluding built-in types.
+        complete_class_names(completions, False)
+    elif re.match("export\(\s*", line):
+        # Complete all class names after 'export'
         complete_class_names(completions)
     elif line and line[-1] == ".":
         # When accessing a value via dot notation, try to guess the type of the
@@ -120,10 +123,13 @@ def complete_paths(completions, line):
         for f in files:
             completions.append(f)
 
-def complete_class_names(completions):
+def complete_class_names(completions, built_in=True):
+    def filter_fun(c_name):
+        return built_in or not classes.is_built_in(c_name)
     def map_fun(c_name):
         return {"word": c_name, "dup": 1}
-    completions.extend(map(map_fun, classes.iter_class_names()))
+    filtered = filter(filter_fun, classes.iter_class_names())
+    completions.extend(map(map_fun, filtered))
 
 def complete_self(completions):
     c = get_extended_class()

@@ -99,6 +99,11 @@ class GodotClasses:
                 pass
         return c
 
+    # Like GodotClass.is_built_in(), but doesn't require the class to be loaded
+    # since built-in types are defined manually.
+    def is_built_in(self, c_name):
+        return c_name in _BUILT_IN_TYPES
+
     def get_global_scope(self):
         if not self._global_scope:
             self._load_global_scope()
