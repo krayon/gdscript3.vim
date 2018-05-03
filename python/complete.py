@@ -30,7 +30,7 @@ def gdscript_complete():
     elif syn_attr == "gdString":
         # Complete file paths (res://) if cursor is in a string.
         complete_paths(completions, line)
-    elif re.match("extends\s*", line):
+    elif re.match("(\s*class\s+\w+\s+)?extends\s*", line):
         # Complete class names after 'extends', excluding built-in types.
         complete_class_names(completions, False)
     elif re.match("export\(\s*", line):
