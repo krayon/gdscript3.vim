@@ -185,7 +185,7 @@ def complete_dot(completions, line):
         c = get_extended_class()
     # Super methods are method calls that begin with a dot.
     elif t.type == TOKEN_SUPER_METHOD:
-        c_name = get_extended_class().get_method(t.name, search_parent=True).get_name()
+        c_name = get_extended_class().get_method(t.name).get_name()
         c = classes.get_class(c_name)
     # 'self' keyword
     elif t.type == TOKEN_MEMBER and t.name == "self":
@@ -200,6 +200,8 @@ def complete_dot(completions, line):
                 flags = CONSTANTS
                 c = classes.get_class(t.name)
                 # Every non-built-in class has an implicit static 'new()' method.
+                # This method doesn't appear in the docs, and is the only static
+                # method that I know of, so it's a little tricky to handle.
                 if not c.is_built_in():
                     if len(tokens) > 1:
                         if tokens[1].type == TOKEN_METHOD  and tokens[1].name == "new":
@@ -223,11 +225,11 @@ def complete_dot(completions, line):
     # Figure out the types of the remaining tokens
     for token in tokens:
         if token.type == TOKEN_MEMBER:
-            member = c.get_member(token.name, search_parent=True)
+            member = c.get_member(token.name)
             if member:
                 c = classes.get_class(member.get_type())
         elif token.type == TOKEN_METHOD:
-            method = c.get_method(token.name, search_parent=True)
+            method = c.get_method(token.name)
             if method:
                 c = classes.get_class(method.get_return_type())
         else:

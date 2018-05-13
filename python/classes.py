@@ -189,24 +189,24 @@ class GodotClass:
     def is_built_in(self):
         return self._is_built_in
 
-    def get_member(self, name, search_parent=False):
+    def get_member(self, name, search_parent=True):
         member = self._members_lookup.get(name)
         if not member and search_parent and self._parent:
-            return self._parent.get_member(name, search_parent=True)
+            return self._parent.get_member(name)
         else:
             return member
 
-    def get_constant(self, name, search_parent=False):
+    def get_constant(self, name, search_parent=True):
         constant = self._constants_lookup.get(name)
         if not constant and search_parent and self._parent:
-            return self._parent.get_constant(name, search_parent=True)
+            return self._parent.get_constant(name)
         else:
             return constant
 
-    def get_method(self, name, search_parent=False):
+    def get_method(self, name, search_parent=True):
         method = self._methods_lookup.get(name)
         if not method and search_parent and self._parent:
-            return self._parent.get_method(name, search_parent=True)
+            return self._parent.get_method(name)
         else:
             return method
 
