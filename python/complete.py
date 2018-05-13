@@ -13,6 +13,23 @@ MEMBERS = 1
 CONSTANTS = 2
 METHODS = 4
 
+# A "token" in this context is something that produces a value, like a
+# variable or method. Tokens can be chained via dot accessors.
+# Example:
+# self.texture.get_size()
+# 'self', 'texture', and 'get_size' (without parentheses) are all tokens.
+class Token:
+    name = None
+    type = None
+
+# Token types
+TOKEN_MEMBER = 1
+TOKEN_METHOD = 2
+# Special tokens that can only appear at the beginning of a token chain.
+TOKEN_SUPER_ACCESSOR = 3
+TOKEN_SUPER_METHOD = 4
+TOKEN_STRING_LITERAL = 5
+
 classes = GodotClasses()
 
 def gdscript_complete():
@@ -41,12 +58,7 @@ def gdscript_complete():
         # value preceding the dot. This works recursively, so chaining dot
         # accessors works as expected if all the intermediary values are
         # built-in members or methods.
-
-        # Handle 'self' separately.
-        if re.match("[^a-zA-Z0-9_.]self", line[col-6:col]):
-            complete_self(completions)
-        else:
-            complete_dot(completions, line)
+        complete_dot(completions, line)
     elif re.match("\s*func", line):
         # Complete functions belonging to the extended type if the cursor is
         # preceded by the 'func' keyword. In this context, the user might be
@@ -136,23 +148,94 @@ def complete_self(completions):
     complete_user(completions)
     add_class_completions(completions, c, MEMBERS | METHODS)
 
-def complete_dot(completions, line):
-    (c, is_static) = get_preceding_class(line, get_col() - 2)
-    if c:
-        if is_static:
-            # Manually add 'new()'
-            # Look for a comment in 'get_preceding_class()' for an
-            # explanation of why this method is such a pain to handle.
-            if not c.is_built_in():
-                completions.append({
-                    "word": "new()",
-                    "abbr": "{}.new()".format(c.get_name()),
-                    "kind": "{}".format(c.get_name()),
-                })
-            add_class_completions(completions, c, CONSTANTS)
-        else:
-            add_class_completions(completions, c, MEMBERS | METHODS)
+# Helper functions for retrieving members/methods from the
+# extended class OR the global scope.
 
+def get_global_member(c, name):
+    if not c:
+        return
+    member = c.get_member(name)
+    if not member:
+        member = classes.get_global_scope().get_member(name)
+    return member
+
+def get_global_method(c, name):
+    if not c:
+        return
+    method = c.get_method(name)
+    if not method:
+        method = classes.get_global_scope().get_method(name)
+    return method
+
+# I purposely wrote this method to be hacky and confusing, as a joke.
+def complete_dot(completions, line):
+    tokens = get_token_chain(line)
+    if not tokens:
+        return
+    c = None
+    flags = MEMBERS | METHODS
+
+    # Figure out the type of the first token.
+    t = tokens[0]
+    if t.type == TOKEN_STRING_LITERAL:
+        c = classes.get_class("String")
+    # "super accessor" just means a lone dot.
+    elif t.type == TOKEN_SUPER_ACCESSOR:
+        flags = METHODS
+        c = get_extended_class()
+    # Super methods are method calls that begin with a dot.
+    elif t.type == TOKEN_SUPER_METHOD:
+        c_name = get_extended_class().get_method(t.name, search_parent=True).get_name()
+        c = classes.get_class(c_name)
+    # 'self' keyword
+    elif t.type == TOKEN_MEMBER and t.name == "self":
+        c = get_extended_class()
+    else:
+        if t.type == TOKEN_MEMBER:
+            member = get_global_member(get_extended_class(), t.name)
+            if member:
+                c = classes.get_class(member.get_type())
+            # Statically access class
+            elif classes.is_class(t.name):
+                flags = CONSTANTS
+                c = classes.get_class(t.name)
+                # Every non-built-in class has an implicit static 'new()' method.
+                if not c.is_built_in():
+                    if len(tokens) > 1:
+                        if tokens[1].type == TOKEN_METHOD  and tokens[1].name == "new":
+                            flags = MEMBERS | METHODS
+                            c = classes.get_class(t.name)
+                            del tokens[1]
+                    else:
+                        completions.append({
+                            "word": "new()",
+                            "abbr": "{}.new()".format(c.get_name()),
+                            "kind": "{}".format(c.get_name()),
+                        })
+        elif t.type == TOKEN_METHOD:
+            method = get_global_method(get_extended_class(), t.name)
+            if method:
+                c = classes.get_class(method.get_return_type())
+    del tokens[0]
+    if not c:
+        return
+
+    # Figure out the types of the remaining tokens
+    for token in tokens:
+        if token.type == TOKEN_MEMBER:
+            member = c.get_member(token.name, search_parent=True)
+            if member:
+                c = classes.get_class(member.get_type())
+        elif token.type == TOKEN_METHOD:
+            method = c.get_method(token.name, search_parent=True)
+            if method:
+                c = classes.get_class(method.get_return_type())
+        else:
+            # Something is probably seriously wrong if we get to this point.
+            return
+        if not c:
+            return
+    add_class_completions(completions, c, flags)
 
 def complete_funcs_with_args(completions, c):
     def map_fun(f):
@@ -212,68 +295,62 @@ def complete_user(completions):
             if m:
                 completions.append({"word": m.group(2), "kind": "(local {})".format(m.group(1))})
 
-# Examine the token(s) before a dot accessor and try to figure out the type.
-# Returns a tuple (GodotClass, bool).
-# The bool indicates whether the class is being statically accessed.
-# This whole thing is pretty messy but I'm afraid to change any of it.
-def get_preceding_class(line, cursor_pos):
-    start = cursor_pos
-    is_method = False
+
+def is_token_char(char):
+    return char.isalnum() or char == "_"
+
+def get_token(line, start):
     paren_count = 0
-    search_global = False
-    c = None
-
-    # Dot accessor after string literal.
-    if get_syn_attr(col=cursor_pos) == "gdString":
-        return (classes.get_class("String"), False)
-
-    for i, char in enumerate(line[cursor_pos - 1::-1]):
+    is_method = False
+    i = start
+    end = None
+    while True:
+        i -= 1
+        char = line[i]
         if char == ")":
             is_method = True
             paren_count += 1
         elif char == "(":
             paren_count -= 1
             if paren_count == 0:
-                cursor_pos = start - i -1
+                start = i
                 continue
-        if paren_count <= 0 and not char.isalnum() and char != "_":
-            if char == ".":
-                (c, is_static) = get_preceding_class(line, start - i - 1)
-                # Each non built-in type has a static 'new()' method.
-                # It's actually the ONLY static method on core types that I know of.
-                # It's also not listed in the XML docs. Because of all that,
-                # there's no clean way to handle it, so we have to resort to
-                # devilish hackery.
-                token = line[start - i:cursor_pos]
-                if is_static and token == "new" and not c.is_built_in():
-                    return (c, False)
-            else:
-                c = get_extended_class()
-                # Complete only extended class after 'self'.
-                if line[start - i:cursor_pos] == "self":
-                    return (c, False)
-                search_global = True
+        if paren_count <= 0 and not is_token_char(char):
+            end = i + 1
             break
-    token = line[start - i:cursor_pos]
-    type_name = None
-    if is_method:
-        method = c.get_method(token, search_parent=True)
-        if not method and search_global:
-            method = classes.get_global_scope().get_method(token)
-        if method:
-            type_name = method.get_return_type()
+        elif i == 0:
+            end = i
+            break
+    token = Token()
+    token.name = line[end:start]
+    if not token.name:
+        if get_syn_attr(col=i+1) == "gdString":
+            token.type = TOKEN_STRING_LITERAL
+        else:
+            token.type = TOKEN_SUPER_ACCESSOR
+    elif is_method:
+        token.type = TOKEN_METHOD
     else:
-        member = c.get_member(token, search_parent=True)
-        if not member and search_global:
-            member = classes.get_global_scope().get_member(token)
-        if member:
-            type_name = member.get_type()
-        elif search_global and classes.is_class(token):
-            return (classes.get_class(token), True)
-    if type_name and type_name != "void":
-        return (classes.get_class(type_name), False)
-    else:
-        return (None, False)
+        token.type = TOKEN_MEMBER
+    return (token, i)
+
+def get_token_chain(line):
+    tokens = []
+    i = get_col() - 2
+    while i > 0 and line[i] == ".":
+        (token, i) = get_token(line, i)
+        tokens.append(token)
+    tokens.reverse()
+    # Combine first two tokens if they result in a super method accessor.
+    if tokens[0].type == TOKEN_SUPER_ACCESSOR:
+        if len(tokens) > 1:
+            if tokens[1].type == TOKEN_METHOD:
+                tokens[1].type = TOKEN_SUPER_METHOD
+                del tokens[0]
+            else:
+                # Super accessor followed by a non-method is invalid.
+                return None
+    return tokens
 
 def get_extended_class():
     # Search for 'extends' statement starting from the top.
@@ -297,11 +374,10 @@ def get_col():
 
 def get_syn_attr(line=None, col=None):
     if not line:
-        line = "."
+        line = "line('.')"
     if not col:
-        col = "."
-    return vim.eval("synIDattr(synID(line('{}'), col('{}')-1, 1), 'name')".
-            format(line, col))
+        col = "col('.')-1"
+    return vim.eval("synIDattr(synID({}, {}, 1), 'name')".  format(line, col))
 
 
 # Get the root directory of the Godot project containing the current script.
