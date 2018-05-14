@@ -294,8 +294,8 @@ def complete_user(completions):
                 "kind": "(local func)"
             })
             indent = prev_indent
-        elif re.match("^class\s+\w+", line):
-            indent = prev_indent
+        elif re.match("^class\s+\w+", line) and prev_indent < indent:
+            return
         elif line.startswith("var") or line.startswith("const"):
             m = re.match("(var|const)\s(\w+)", line)
             if m:
