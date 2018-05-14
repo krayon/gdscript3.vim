@@ -1,5 +1,10 @@
 setlocal commentstring=#\ %s
 
+if exists("g:gdscript3_loaded")
+    finish
+endif
+let g:gdscript3_loaded=1
+
 if !has("python3") && !has("python")
     finish
 endif
