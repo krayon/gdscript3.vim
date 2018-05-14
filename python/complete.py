@@ -228,10 +228,14 @@ def complete_dot(completions, line):
             member = c.get_member(token.name)
             if member:
                 c = classes.get_class(member.get_type())
+            else:
+                return
         elif token.type == TOKEN_METHOD:
             method = c.get_method(token.name)
             if method:
                 c = classes.get_class(method.get_return_type())
+            else:
+                return
         else:
             # Something is probably seriously wrong if we get to this point.
             return
