@@ -359,6 +359,31 @@ def get_token_chain(line):
     return tokens
 
 def get_extended_class():
+    # Check if the current function is part of an inner class.
+    # If it is, return the extended class of the inner class.
+    lnum = int(vim.eval("line('.')"))
+    found_func = False
+    for i in range(lnum, 0, -1):
+        line = vim.eval("getline({})".format(i))
+        if not line.strip():
+            continue
+        if not found_func:
+            # Search upwards for 'func'.
+            if re.match("\s*func\s+", line):
+                # If the line is indented, it means the func is part of an inner class.
+                # In this case, start searching for the inner class.
+                if int(vim.eval("indent({})".format(i))) > 0:
+                    found_func = True
+                else:
+                    break
+        else:
+            # Search for the inner class that holds the current function
+            m = re.match("class\s+\w*\s+extends\s+(\w+)", line)
+            if m:
+                return classes.get_class(m.group(1))
+
+    # No inner class, so return the script's extended class
+
     # Search for 'extends' statement starting from the top.
     for i in range(1, int(vim.eval("line('$')"))):
         line = vim.eval("getline({})".format(i))
