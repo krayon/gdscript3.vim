@@ -44,4 +44,27 @@ fun! GDScriptComplete(findstart, base)
     endif
 endfun
 
+" Configure for common completion frameworks.
+
+fun! <SID>Set(name, default)
+    if !exists(a:name)
+        execute "let " . a:name . " = " . a:default
+    endif
+endfun
+
+" Deoplete
+call <SID>Set("g:deoplete#sources", "{}")
+call <SID>Set("g:deoplete#omni#input_patterns", "{}")
+let g:deoplete#sources.gdscript3 = ["omni"]
+let g:deoplete#omni#input_patterns.gdscript3 = [
+    \ '\.|\w+',
+    \ '\bextends\s+',
+    \ '\bexport\(',
+    \ '\bfunc\s+',
+    \ 'res://.*'
+    \ ]
+
+" SuperTab
+let g:SuperTabDefaultCompletionType = "<c-x><c-o>"
+
 set omnifunc=GDScriptComplete
