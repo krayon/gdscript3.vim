@@ -67,4 +67,22 @@ let g:deoplete#omni#input_patterns.gdscript3 = [
 " SuperTab
 let g:SuperTabDefaultCompletionType = "<c-x><c-o>"
 
+if g:echodoc#enable_at_startup != 0
+    let s:echodoc_dict = { "name": "gdscript3", "rank": 9 }
+    fun! s:echodoc_dict.search(text)
+        execute s:py_cmd . " echodoc_search()"
+        if exists("echodoc_search_result")
+            return echodoc_search_result
+        else
+            return []
+        endif
+    endfun
+    call echodoc#register('gdscript3', s:echodoc_dict)
+
+    " Reset echodoc cache when exiting insert mode.
+    " This fixes an issue where the function signature wouldn't re-appear
+    " after exiting and re-entering insert mode.
+    au InsertLeave * let b:prev_echodoc = []
+endif
+
 set omnifunc=GDScriptComplete

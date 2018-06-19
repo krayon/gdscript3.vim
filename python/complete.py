@@ -167,11 +167,12 @@ def get_global_method(c, name):
         method = classes.get_global_scope().get_method(name)
     return method
 
-# I purposely wrote this method to be hacky and confusing, as a joke.
-def complete_dot(completions, line):
-    tokens = get_token_chain(line)
+
+# Try to figure out the type of the last token in a token chain.
+# Returns (GodotClass, [completion flags])
+def get_preceding_type(completions, tokens):
     if not tokens:
-        return
+        return None
     c = None
     flags = MEMBERS | METHODS
 
@@ -208,7 +209,7 @@ def complete_dot(completions, line):
                             flags = MEMBERS | METHODS
                             c = classes.get_class(t.name)
                             del tokens[1]
-                    else:
+                    elif completions:
                         completions.append({
                             "word": "new()",
                             "abbr": "{}.new()".format(c.get_name()),
@@ -241,7 +242,13 @@ def complete_dot(completions, line):
             return
         if not c:
             return
-    add_class_completions(completions, c, flags)
+    return (c, flags)
+
+def complete_dot(completions, line):
+    tokens = get_token_chain(line, get_col() - 1)
+    (c, flags) = get_preceding_type(completions, tokens) or (None, None)
+    if c:
+        add_class_completions(completions, c, flags)
 
 def complete_funcs_with_args(completions, c):
     def map_fun(f):
@@ -340,12 +347,14 @@ def get_token(line, start):
         token.type = TOKEN_MEMBER
     return (token, i)
 
-def get_token_chain(line):
+def get_token_chain(line, start_col):
     tokens = []
-    i = get_col() - 2
+    i = start_col - 1
     while i > 0 and line[i] == ".":
         (token, i) = get_token(line, i)
         tokens.append(token)
+    if len(tokens) == 0:
+        return
     tokens.reverse()
     # Combine first two tokens if they result in a super method accessor.
     if tokens[0].type == TOKEN_SUPER_ACCESSOR:
@@ -430,4 +439,64 @@ def get_project_dir():
         finally:
             os.chdir(cwd)
     return _project_dir
+
+
+
+# echodoc
+
+_hl_identifier = vim.eval("g:echodoc#highlight_identifier")
+_hl_arguments = vim.eval("g:echodoc#highlight_arguments")
+def echodoc_search():
+    text = vim.eval("a:text")
+    text_len = len(text)
+    if text_len == 0:
+        return
+    line = get_line()[0:get_col() - text_len - 1]
+    tokens = get_token_chain(line, len(line))
+
+    if not tokens or len(tokens) == 0:
+        c = get_extended_class()
+        global_method = True
+    else:
+        (c, _) = get_preceding_type(None, tokens) or (None, None)
+        global_method = False
+
+    if not c:
+        return
+
+    m = re.match("\w+", text)
+    if not m:
+        return
+    if global_method:
+        method = get_global_method(c, m.group(0))
+    else:
+        method = c.get_method(m.group(0))
+
+    if not method:
+        return
+
+    arg_hl_index = 0
+    paren_count = 0
+    for char in text[len(m.group(0))+1:]:
+        if char == "(":
+            paren_count += 1
+        elif char == ")":
+            paren_count -= 1
+        elif char == "," and paren_count <= 0:
+            arg_hl_index += 1
+
+    echodoc = [
+            { "text": method.get_name(), "highlight": _hl_identifier },
+            { "text": "(" }
+            ]
+    arg_count = method.get_arg_count();
+    for (i, arg) in enumerate(method.iter_args()):
+        d = {"text": "{} {}".format(arg.get_type(), arg.get_name())}
+        if arg_hl_index == i:
+            d["highlight"] = _hl_arguments
+        echodoc.append(d)
+        if arg_count - 1 > i:
+            echodoc.append({"text": ", "})
+    echodoc.append({"text": ")"})
+    vim.command("let echodoc_search_result = {}".format(str(echodoc)))
 

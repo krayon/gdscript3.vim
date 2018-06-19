@@ -311,6 +311,12 @@ class GodotMethod:
                 return arg
         return None
 
+    def iter_args(self):
+        return iter(self._args)
+
+    def get_arg_count(self):
+        return len(self._args)
+
     def get_completion(self):
         return self._completion
 
