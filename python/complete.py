@@ -444,8 +444,9 @@ def get_project_dir():
 
 # echodoc
 
-_hl_identifier = vim.eval("g:echodoc#highlight_identifier")
-_hl_arguments = vim.eval("g:echodoc#highlight_arguments")
+_hl_identifier = ""
+_hl_arguments = ""
+
 def echodoc_search():
     text = vim.eval("a:text")
     text_len = len(text)
@@ -475,6 +476,8 @@ def echodoc_search():
     if not method:
         return
 
+    hl_identifier = vim.eval("g:echodoc#highlight_identifier")
+    hl_arguments = vim.eval("g:echodoc#highlight_arguments")
     arg_hl_index = 0
     paren_count = 0
     for char in text[len(m.group(0))+1:]:
@@ -486,14 +489,14 @@ def echodoc_search():
             arg_hl_index += 1
 
     echodoc = [
-            { "text": method.get_name(), "highlight": _hl_identifier },
+            { "text": method.get_name(), "highlight": hl_identifier },
             { "text": "(" }
             ]
     arg_count = method.get_arg_count();
     for (i, arg) in enumerate(method.iter_args()):
         d = {"text": "{} {}".format(arg.get_type(), arg.get_name())}
         if arg_hl_index == i:
-            d["highlight"] = _hl_arguments
+            d["highlight"] = hl_arguments
         echodoc.append(d)
         if arg_count - 1 > i:
             echodoc.append({"text": ", "})

@@ -67,7 +67,7 @@ let g:deoplete#omni#input_patterns.gdscript3 = [
 " SuperTab
 let g:SuperTabDefaultCompletionType = "<c-x><c-o>"
 
-if g:echodoc#enable_at_startup != 0
+if &rtp =~ 'echodoc'
     let s:echodoc_dict = { "name": "gdscript3", "rank": 9 }
     fun! s:echodoc_dict.search(text)
         execute s:py_cmd . " echodoc_search()"
