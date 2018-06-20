@@ -31,5 +31,7 @@ Any plugin that supports omnicompletion should also work, but will likely requir
 
 [echodoc](https://github.com/Shougo/echodoc.vim) is also supported, for showing method signatures in the echo area (useful for methods with lots of parameters).
 
+For a non-comprehensive list of features, see this [wiki page](https://github.com/calviken/vim-gdscript3/wiki/Completion)
+
 # License
 MIT
