@@ -61,7 +61,7 @@ let g:deoplete#omni#input_patterns.gdscript3 = [
     \ '\bextends\s+',
     \ '\bexport\(',
     \ '\bfunc\s+',
-    \ 'res://.*'
+    \ '"res://[^"]*'
     \ ]
 
 " SuperTab
