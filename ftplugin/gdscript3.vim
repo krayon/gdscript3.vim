@@ -85,4 +85,7 @@ if &rtp =~ 'echodoc'
     au InsertLeave * let b:prev_echodoc = []
 endif
 
+" Configure Syntastic checker
+let g:syntastic_gdscript3_checkers = ['godot_server']
+
 set omnifunc=GDScriptComplete
