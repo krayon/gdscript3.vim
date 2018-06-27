@@ -33,5 +33,12 @@ Any plugin that supports omnicompletion should also work, but will likely requir
 
 For a non-comprehensive list of features, see this [wiki page](https://github.com/calviken/vim-gdscript3/wiki/Completion)
 
+# Syntastic
+
+For [Syntastic](https://github.com/vim-syntastic/syntastic) users, a checker is included and enabled by default. 
+
+First, download the [Godot server binary](https://godotengine.org/download), rename to `godot_server`, and place in a `$PATH` accessible directory.
+
+Credit goes to [clktmr](https://github.com/clktmr) for creating the checker.
 # License
 MIT
