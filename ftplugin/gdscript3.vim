@@ -17,8 +17,8 @@ else
     let s:py_cmd = "py"
 endif
 
-execute s:pyfile_cmd . expand('<sfile>:p:h') . "/../python/classes.py"
-execute s:pyfile_cmd . expand('<sfile>:p:h') . "/../python/complete.py"
+execute s:pyfile_cmd . " " . expand('<sfile>:p:h') . "/../python/classes.py"
+execute s:pyfile_cmd . " " . expand('<sfile>:p:h') . "/../python/complete.py"
 
 fun! GDScriptComplete(findstart, base)
     if a:findstart == 1
