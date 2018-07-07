@@ -53,18 +53,20 @@ fun! <SID>Set(name, default)
 endfun
 
 " Deoplete
-call deoplete#custom#option('sources', {
-    \ 'gdscript3': ['omni'],
-\ })
-call deoplete#custom#var('omni', 'input_patterns', {
-    \ 'gdscript3': [
-        \ '\.|\w+',
-        \ '\bextends\s+',
-        \ '\bexport\(',
-        \ '\bfunc\s+',
-        \ '"res://[^"]*'
-    \ ]
-\ })
+if &rtp =~ 'deoplete.nvim'
+    call deoplete#custom#option('sources', {
+        \ 'gdscript3': ['omni'],
+    \ })
+    call deoplete#custom#var('omni', 'input_patterns', {
+        \ 'gdscript3': [
+            \ '\.|\w+',
+            \ '\bextends\s+',
+            \ '\bexport\(',
+            \ '\bfunc\s+',
+            \ '"res://[^"]*'
+        \ ]
+    \ })
+endif
 
 " SuperTab
 let g:SuperTabDefaultCompletionType = "<c-x><c-o>"
