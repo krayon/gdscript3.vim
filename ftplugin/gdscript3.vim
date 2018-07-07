@@ -53,16 +53,18 @@ fun! <SID>Set(name, default)
 endfun
 
 " Deoplete
-call <SID>Set("g:deoplete#sources", "{}")
-call <SID>Set("g:deoplete#omni#input_patterns", "{}")
-let g:deoplete#sources.gdscript3 = ["omni"]
-let g:deoplete#omni#input_patterns.gdscript3 = [
-    \ '\.|\w+',
-    \ '\bextends\s+',
-    \ '\bexport\(',
-    \ '\bfunc\s+',
-    \ '"res://[^"]*'
+call deoplete#custom#option('sources', {
+    \ 'gdscript3': ['omni'],
+\ })
+call deoplete#custom#var('omni', 'input_patterns', {
+    \ 'gdscript3': [
+        \ '\.|\w+',
+        \ '\bextends\s+',
+        \ '\bexport\(',
+        \ '\bfunc\s+',
+        \ '"res://[^"]*'
     \ ]
+\ })
 
 " SuperTab
 let g:SuperTabDefaultCompletionType = "<c-x><c-o>"
