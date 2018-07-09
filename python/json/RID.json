@@ -1,0 +1,22 @@
+{
+  "members":[],
+  "constants":[],
+  "methods":[
+    {
+      "returns":"RID",
+      "name":"RID",
+      "args":[
+        {
+          "name":"from",
+          "type":"Object"
+        }
+      ]
+    },
+    {
+      "returns":"int",
+      "name":"get_id"
+    }
+  ],
+  "name":"RID",
+  "inherits":null
+}

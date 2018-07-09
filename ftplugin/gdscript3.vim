@@ -17,8 +17,7 @@ else
     let s:py_cmd = "py"
 endif
 
-execute s:pyfile_cmd . expand('<sfile>:p:h') . "/../python/classes.py"
-execute s:pyfile_cmd . expand('<sfile>:p:h') . "/../python/complete.py"
+execute s:pyfile_cmd . " " . expand('<sfile>:p:h') . "/../python/init.py"
 
 fun! GDScriptComplete(findstart, base)
     if a:findstart == 1
@@ -43,30 +42,32 @@ fun! GDScriptComplete(findstart, base)
         endif
     endif
 endfun
+set omnifunc=GDScriptComplete
 
 " Configure for common completion frameworks.
 
-fun! <SID>Set(name, default)
-    if !exists(a:name)
-        execute "let " . a:name . " = " . a:default
-    endif
-endfun
-
 " Deoplete
-call <SID>Set("g:deoplete#sources", "{}")
-call <SID>Set("g:deoplete#omni#input_patterns", "{}")
-let g:deoplete#sources.gdscript3 = ["omni"]
-let g:deoplete#omni#input_patterns.gdscript3 = [
-    \ '\.|\w+',
-    \ '\bextends\s+',
-    \ '\bexport\(',
-    \ '\bfunc\s+',
-    \ '"res://[^"]*'
-    \ ]
+if &rtp =~ 'deoplete.nvim'
+    call deoplete#custom#option('sources', {
+        \ 'gdscript3': ['omni'],
+    \ })
+    call deoplete#custom#var('omni', 'input_patterns', {
+        \ 'gdscript3': [
+            \ '\.|\w+',
+            \ '\bextends\s+',
+            \ '\bexport\(',
+            \ '\bfunc\s+',
+            \ '"res://[^"]*'
+        \ ]
+    \ })
+endif
 
 " SuperTab
 let g:SuperTabDefaultCompletionType = "<c-x><c-o>"
 
+
+
+" Configure echodoc
 if &rtp =~ 'echodoc'
     let s:echodoc_dict = { "name": "gdscript3", "rank": 9 }
     fun! s:echodoc_dict.search(text)
@@ -87,5 +88,3 @@ endif
 
 " Configure Syntastic checker
 let g:syntastic_gdscript3_checkers = ['godot_server']
-
-set omnifunc=GDScriptComplete
