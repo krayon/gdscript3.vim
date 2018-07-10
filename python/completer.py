@@ -100,13 +100,14 @@ def _add_class_items(c, flags=None):
 # Generic function for building completion dicts.
 def build_completion(item, c_name=None):
     t = type(item)
+    d = {}
     if t is str:
         if util.filter(item):
-            return { "word": item }
+            d["word"] = item
     elif item.name:
         if not util.filter(item.name):
             return
-        d = {"word": item.name}
+        d["word"] = item.name
 
         # Built-in
         if t is classes.GodotMember:
@@ -147,4 +148,7 @@ def build_completion(item, c_name=None):
             d["kind"] = "enum"
         elif t is script.ClassDecl:
             d["kind"] = "class"
-        return d
+    if not d:
+        return
+    d["dup"] = 1
+    return d
