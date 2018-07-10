@@ -21,6 +21,10 @@ def clear_completions():
 def get_completions():
     return _completions
 
+def append_completion(completion):
+    if completion:
+        _completions.append(completion)
+
 def complete_paths():
     m = re.search("res://(((\w|-)+/)*)$", util.get_line())
     if m:
@@ -36,6 +40,8 @@ def complete_paths():
             return
         for entry in os.listdir(dir):
             if not entry.startswith("."):
+                if not util.filter(entry):
+                    continue
                 if os.path.isdir("{}/{}".format(dir, entry)):
                     dirs.append({
                         "word": entry,
@@ -50,13 +56,13 @@ def complete_paths():
         dirs.sort(key=lambda c: c["word"])
         files.sort(key=lambda c: c["word"])
         for d in dirs:
-            _completions.append(d)
+            append_completion(d)
         for f in files:
-            _completions.append(f)
+            append_completion(f)
 
 def complete_class_names(type=0):
     for name in classes.iter_class_names(type):
-        _completions.append(build_completion(name))
+        append_completion(build_completion(name))
 
 def complete_method_signatures():
     c = classes.get_class(script.get_extended_class())
@@ -65,7 +71,7 @@ def complete_method_signatures():
             d = build_completion(method, c.get_name())
             mapped_args = map(lambda a: a.name, method.args)
             d["word"] = "{}({}):".format(method.name, ", ".join(mapped_args))
-            _completions.append(d)
+            append_completion(d)
         c = c.get_inherited_class()
 
 def complete_globals():
@@ -76,9 +82,9 @@ def complete_globals():
         if decl_type == script.ClassDecl:
             down_search_start = decl.line
         elif decl_type != script.FuncDecl:
-            _completions.append(build_completion(decl))
+            append_completion(build_completion(decl))
     for decl in script.iter_decls(down_search_start, direction=1):
-        _completions.append(build_completion(decl))
+        append_completion(build_completion(decl))
 
     # Complete extended class.
     c = classes.get_class(script.get_extended_class())
@@ -94,19 +100,22 @@ def _add_class_items(c, flags=None):
     while c:
         c_name = c.get_name()
         for member in c.iter_members():
-            _completions.append(build_completion(member, c_name))
+            append_completion(build_completion(member, c_name))
         for method in c.iter_methods():
-            _completions.append(build_completion(method, c_name))
+            append_completion(build_completion(method, c_name))
         for constant in c.iter_constants():
-            _completions.append(build_completion(constant, c_name))
+            append_completion(build_completion(constant, c_name))
         c = c.get_inherited_class()
 
 # Generic function for building completion dicts.
 def build_completion(item, c_name=None):
     t = type(item)
     if t is str:
-        return { "word": item }
+        if util.filter(item):
+            return { "word": item }
     elif item.name:
+        if not util.filter(item.name):
+            return
         d = {"word": item.name}
 
         # Built-in
