@@ -31,33 +31,23 @@ def complete_paths():
         project_dir = util.get_project_dir()
         if not project_dir:
             return
-        subdir = m.group(1)
         # Directories and files are grouped and sorted separately.
         dirs = []
         files = []
-        dir = "{}/{}".format(project_dir, subdir)
-        if not os.path.isdir(dir):
+        base_dir = "{}/{}".format(project_dir, m.group(1))
+        if not os.path.isdir(base_dir):
             return
-        for entry in os.listdir(dir):
+        for entry in os.listdir(base_dir):
             if not entry.startswith("."):
                 if not util.filter(entry):
                     continue
-                if os.path.isdir("{}/{}".format(dir, entry)):
-                    dirs.append({
-                        "word": entry,
-                        "abbr": "{}/".format(entry),
-                        "dup": 1,
-                    })
+                if os.path.isdir("{}/{}".format(base_dir, entry)):
+                    dirs.append("{}/".format(entry))
                 else:
-                    files.append({
-                        "word": entry,
-                        "dup": 1,
-                    })
-        dirs.sort(key=lambda c: c["word"])
-        files.sort(key=lambda c: c["word"])
-        for d in dirs:
+                    files.append(entry)
+        for d in sorted(dirs):
             append_completion(d)
-        for f in files:
+        for f in sorted(files):
             append_completion(f)
 
 def complete_class_names(type=0):
