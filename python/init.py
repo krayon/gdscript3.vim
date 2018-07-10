@@ -23,6 +23,8 @@ def gdscript_complete():
         completer.complete_class_names(classes.EXTENDABLE)
     elif re.match("export\(\s*", line):
         completer.complete_class_names(classes.EXPORTABLE)
+    elif re.match("\s*func", line):
+        completer.complete_method_signatures()
     else:
         completer.complete_globals()
 

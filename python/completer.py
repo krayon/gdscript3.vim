@@ -58,8 +58,17 @@ def complete_class_names(type=0):
     for name in classes.iter_class_names(type):
         _completions.append(build_completion(name))
 
-def complete_globals():
+def complete_method_signatures():
+    c = classes.get_class(script.get_extended_class())
+    while c:
+        for method in c.iter_methods():
+            d = build_completion(method, c.get_name())
+            mapped_args = map(lambda a: a.name, method.args)
+            d["word"] = "{}({}):".format(method.name, ", ".join(mapped_args))
+            _completions.append(d)
+        c = c.get_inherited_class()
 
+def complete_globals():
     # Complete user decls.
     down_search_start = 1
     for decl in script.iter_decls(util.get_cursor_line_num(), direction=-1):
