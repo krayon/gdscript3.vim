@@ -187,8 +187,8 @@ def _iter_decls_up(start, flags):
                         for arg in mapped_args:
                             yield arg
                     # Yield var decls gathered up until now.
-                    for decl in reversed(decls):
-                        yield decl
+                    for stored_decl in reversed(decls):
+                        yield stored_decl
                 if flags & FUNC_DECLS:
                     yield decl
                 if indent == 0:
