@@ -138,5 +138,6 @@
     }
   ],
   "name":"PoolByteArray",
-  "inherits":null
+  "inherits":null,
+  "built_in":true
 }

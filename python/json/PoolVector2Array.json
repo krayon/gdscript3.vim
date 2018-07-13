@@ -90,5 +90,6 @@
     }
   ],
   "name":"PoolVector2Array",
-  "inherits":null
+  "inherits":null,
+  "built_in":true
 }

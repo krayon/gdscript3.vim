@@ -224,5 +224,6 @@
     }
   ],
   "name":"Vector3",
-  "inherits":null
+  "inherits":null,
+  "built_in":true
 }

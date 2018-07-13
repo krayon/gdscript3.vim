@@ -135,5 +135,6 @@
     }
   ],
   "name":"Rect2",
-  "inherits":null
+  "inherits":null,
+  "built_in":true
 }

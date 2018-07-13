@@ -111,5 +111,6 @@
     }
   ],
   "name":"Quat",
-  "inherits":null
+  "inherits":null,
+  "built_in":true
 }

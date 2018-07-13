@@ -90,5 +90,6 @@
     }
   ],
   "name":"PoolIntArray",
-  "inherits":null
+  "inherits":null,
+  "built_in":true
 }

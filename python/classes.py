@@ -22,9 +22,10 @@ GodotMethod = namedtuple("GodotMethod", "name, returns, args, qualifiers")
 GodotMethodArg = namedtuple("GodotMethodArg", "name, type, default")
 
 class GodotClass:
-    def __init__(self, name, inherits, members, constants, methods):
+    def __init__(self, name, inherits, built_in, members, constants, methods):
         self._name = name
         self._inherits = inherits
+        self._built_in = built_in
         self._members = members
         self._constants = constants
         self._methods = methods
@@ -46,6 +47,9 @@ class GodotClass:
 
     def get_inherited_class(self):
         return self._inherits
+
+    def is_built_in(self):
+        return self._built_in
 
     def get_member(self, name, search_inherited=True, search_global=False):
         member = self._members_lookup.get(name)
@@ -96,6 +100,7 @@ def _load_class(name):
 
     c_name = obj.get("name")
     inherits = obj.get("inherits")
+    built_in = obj.get("built_in")
 
     def map_member(m):
         return GodotMember(m["name"], m["type"])
@@ -110,7 +115,7 @@ def _load_class(name):
     members = list(map(map_member, obj.get("members", [])))
     constants = list(map(map_constant, obj.get("constants", [])))
     methods = list(map(map_method, obj.get("methods", [])))
-    return GodotClass(c_name, get_class(inherits), members, constants, methods)
+    return GodotClass(c_name, get_class(inherits), built_in, members, constants, methods)
 
 def get_class(name):
     if not name:
@@ -132,19 +137,8 @@ def get_global_scope():
     return _global_scope
 
 def iter_class_names():
+    _load_class_info()
     return iter(_class_names)
-
-def iter_built_in_class_names():
-    return map(lambda c: c["name"],
-           filter(lambda c: c.get("built_in"), _class_info))
-
-def iter_extendable_class_names():
-    return map(lambda c: c["name"],
-           filter(lambda c: not c.get("built_in"), _class_info))
-
-def iter_exportable_class_names():
-    return map(lambda c: c["name"],
-           filter(lambda c: c.get("exportable"), _class_info))
 
 def iter_class_names(type=0):
     _load_class_info()

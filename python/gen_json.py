@@ -61,6 +61,7 @@ def xml_to_json(path):
                 c["inherits"] = attrib.get("inherits")
                 info["name"] = attrib["name"]
                 if attrib.get("category") == "Built-In Types":
+                    c["built_in"] = True
                     info["built_in"] = True
             elif tag == "member":
                 member = {}

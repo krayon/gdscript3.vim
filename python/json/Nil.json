@@ -3,5 +3,6 @@
   "constants":[],
   "methods":[],
   "name":"Nil",
-  "inherits":null
+  "inherits":null,
+  "built_in":true
 }

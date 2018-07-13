@@ -75,9 +75,13 @@ def complete_dot():
 
         # Complete statically accessible items in classes.
         if last_token_type is script.ClassToken:
+            # Class is defined by Godot.
             if last_token.line == -1:
-                # Class is defined by Godot.
                 c = classes.get_class(last_token.name)
+                # Manually add an entry for 'new()' for core types.
+                if not c.is_built_in():
+                    new_func = classes.GodotMethod("new", c.get_name(), [], None)
+                    append_completion(build_completion(new_func, c.get_name()))
                 _add_class_items(c, _CONSTANTS)
             else:
                 for decl in script.iter_static_decls(last_token.line, script.ANY_DECLS):

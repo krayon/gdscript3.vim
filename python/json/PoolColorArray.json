@@ -90,5 +90,6 @@
     }
   ],
   "name":"PoolColorArray",
-  "inherits":null
+  "inherits":null,
+  "built_in":true
 }

@@ -3,5 +3,6 @@
   "constants":[],
   "methods":[],
   "name":"int",
-  "inherits":null
+  "inherits":null,
+  "built_in":true
 }

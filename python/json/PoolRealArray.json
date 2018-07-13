@@ -90,5 +90,6 @@
     }
   ],
   "name":"PoolRealArray",
-  "inherits":null
+  "inherits":null,
+  "built_in":true
 }

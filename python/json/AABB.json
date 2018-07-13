@@ -167,5 +167,6 @@
     }
   ],
   "name":"AABB",
-  "inherits":null
+  "inherits":null,
+  "built_in":true
 }

@@ -368,6 +368,11 @@ def get_token_chain(line, line_num, start_col):
         elif prev_token_type is MethodToken:
             prev_class = classes.get_class(prev_token.returns)
         elif prev_token_type is ClassToken:
+            if is_method and name == "new":
+                if not (prev_token.line == -1 and
+                        classes.get_class(prev_token.name).is_built_in()):
+                    chain.append(MethodToken(name, prev_token.name))
+                    return chain
             for decl in iter_static_decls(prev_token.line, ANY_DECLS):
                 if decl.name == name:
                     decl_type = type(decl)
