@@ -94,44 +94,43 @@ def _args_to_vars(func_decl):
 
 # Generator function that scans the current file and yields user declarations.
 #
-# 'start' is the line num where scanning should start.
 # 'direction' should be 1 for downwards, or -1 for upwards.
 #
-# When scanning downwards, 'start' should either be on an inner class decl, or
+# When scanning downwards, 'start_line' should either be on an inner class decl, or
 # on an unindented line (usually the top of the script). If starting on a
 # class decl, only the decls within that class are yielded. Similarly, items
 # within inner classes are ignored when scanning for global decls.
 #
-# When scanning upwards, 'start' should be inside a function. This yields
+# When scanning upwards, 'start_line' should be inside a function. This yields
 # the following items in this order:
 # 1. Function arguments.
-# 2. Function-local var declarations up until 'start'.
+# 2. Function-local var declarations up until 'start_line'.
 # 3. The function itself.
 # 4. The inner class containing the function (if there is one)
-def iter_decls(start, direction, flags=None):
+def iter_decls(start_line, direction, flags=None):
     if direction != 1 and direction != -1:
         raise ValueError("'direction' must be 1 or -1!")
     if not flags:
         flags = ANY_DECLS
     if direction == 1:
-        return _iter_decls_down(start, flags)
+        return _iter_decls_down(start_line, flags)
     else:
-        return _iter_decls_up(start, flags)
+        return _iter_decls_up(start_line, flags)
 
-def _iter_decls_down(start, flags):
+def _iter_decls_down(start_line, flags):
     # Check whether the starting line is a class decl.
     # If so, the indent of the next line is used as a baseline to determine
     # which items are direct children of the inner class.
     in_class = False
-    class_decl = _get_decl(start, CLASS_DECLS)
+    class_decl = _get_decl(start_line, CLASS_DECLS)
     if class_decl:
         in_class = True
-        class_indent = util.get_indent(start)
+        class_indent = util.get_indent(start_line)
         inner_indent = None
         if flags & CLASS_DECLS:
             yield class_decl
 
-    for lnum in range(start+1, util.get_line_count()):
+    for lnum in range(start_line+1, util.get_line_count()):
         if not util.get_line(lnum):
             continue
         indent = util.get_indent(lnum)
@@ -149,7 +148,7 @@ def _iter_decls_down(start, flags):
         if decl:
             yield decl
 
-def _iter_decls_up(start, flags):
+def _iter_decls_up(start_line, flags):
     # Remove consts and enums from flags, since they can't exist inside functions.
     flags &= ~CONST_DECLS
     flags &= ~ENUM_DECLS
@@ -158,13 +157,13 @@ def _iter_decls_up(start, flags):
     # was inside a function. If it wasn't, only the class decl is yielded, or
     # nothing if the start line wasn't inside an inner class either.
     decls = []
-    start_indent = util.get_indent(start)
+    start_indent = util.get_indent(start_line)
     if start_indent == 0:
         return
     # Upon reaching a func decl, the search continues until a class decl is found.
     # This only happens if the func decl is indented.
     found_func = False
-    for lnum in range(start-1, 0, -1):
+    for lnum in range(start_line-1, 0, -1):
         indent = util.get_indent(lnum)
         if indent > start_indent:
             continue
@@ -204,10 +203,10 @@ def _iter_decls_up(start, flags):
             decls.append(decl)
 
 # Helper function for gathering statically accessible items in classes.
-def iter_static_decls(start, flags):
+def iter_static_decls(start_line, flags):
     # Vars can't be accessed statically.
     flags &= ~VAR_DECLS
-    it = iter_decls(start, 1, flags)
+    it = iter_decls(start_line, 1, flags)
     # The first decl will be the class itself, which we don't need.
     next(it)
     for decl in it:
@@ -217,9 +216,9 @@ def iter_static_decls(start, flags):
         yield decl
 
 # Search for a user decl with a particular name.
-def find_decl(start, name, flags=None):
+def find_decl(start_line, name, flags=None):
     down_search_start = 1
-    for decl in iter_decls(start, -1, flags | CLASS_DECLS):
+    for decl in iter_decls(start_line, -1, flags | CLASS_DECLS):
         if type(decl) == ClassDecl:
             if flags & CLASS_DECLS and decl.name == name:
                 return decl
@@ -230,19 +229,19 @@ def find_decl(start, name, flags=None):
             return decl
     return find_decl_down(down_search_start, name, flags)
 
-def find_decl_down(start, name, flags=None):
-    for decl in iter_decls(start, 1, flags):
+def find_decl_down(start_line, name, flags=None):
+    for decl in iter_decls(start_line, 1, flags):
         if decl.name == name:
             return decl
 
 # Search for the 'extends' keyword and return the name of the extended class.
-def get_extended_class(start=None):
+def get_extended_class(start_line=None):
     # Figure out if we're in an inner class and return its extended type if so.
-    if not start:
-        start = util.get_cursor_line_num()
-    start_indent = util.get_indent(start)
+    if not start_line:
+        start_line = util.get_cursor_line_num()
+    start_indent = util.get_indent(start_line)
     if start_indent > 0:
-        for decl in iter_decls(start, -1, FUNC_DECLS | CLASS_DECLS):
+        for decl in iter_decls(start_line, -1, FUNC_DECLS | CLASS_DECLS):
             indent = util.get_indent(decl.line)
             if indent == start_indent:
                 continue
