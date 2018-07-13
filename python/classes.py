@@ -47,26 +47,29 @@ class GodotClass:
     def get_inherited_class(self):
         return self._inherits
 
-    def get_member(self, name, search_inherited=True):
+    def get_member(self, name, search_inherited=True, search_global=False):
         member = self._members_lookup.get(name)
         if not member and search_inherited and self._inherits:
-            return self._inherits.get_member(name)
-        else:
-            return member
+            member = self._inherits.get_member(name)
+        if not member and search_global:
+            member = get_global_scope().get_member(name)
+        return member
 
-    def get_constant(self, name, search_inherited=True):
+    def get_constant(self, name, search_inherited=True, search_global=False):
         constant = self._constants_lookup.get(name)
         if not constant and search_inherited and self._inherits:
-            return self._inherits.get_constant(name)
-        else:
-            return constant
+            constant = self._inherits.get_constant(name)
+        if not constant and search_global:
+            constant = get_global_scope().get_constant(name)
+        return constant
 
-    def get_method(self, name, search_inherited=True):
+    def get_method(self, name, search_inherited=True, search_global=False):
         method = self._methods_lookup.get(name)
         if not method and search_inherited and self._inherits:
-            return self._inherits.get_method(name)
-        else:
-            return method
+            method = self._inherits.get_method(name)
+        if not method and search_global:
+            method = get_global_scope().get_method(name)
+        return method
 
     def iter_members(self):
         return iter(self._members)

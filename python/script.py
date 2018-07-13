@@ -8,12 +8,11 @@ import classes
 
 # Regex patterns for user declarations.
 _VAR_PATTERN = "\s*(?:export(?:\(.*\)\s+)?)?var\s+(\w+)"
-_CONST_PATTERN = "\s*const\s+(\w+)\s*=\s*(\w+)"
+_CONST_PATTERN = "\s*const\s+(\w+)\s*=\s*(.+)"
 _FUNC_PATTERN = "\s*(static\s+)?func\s+(\w+)\(((\w|,|\s)*)\):"
 _ENUM_PATTERN = "\s*enum\s+(\w+)"
+_ENUM_VALUES_PATTERN = "\s*enum\s+\w+\s*\{(.*)\}"
 _CLASS_PATTERN = "\s*class\s+(\w+)(?:\s+extends\s+(\w+))?"
-
-# _ENUM_VALUES_PATTERN = "\s*enum\s+\w+\s*\{(\w|,|\s)*\}"
 
 # Flags for choosing which decl types to gather.
 VAR_DECLS = 1
@@ -21,19 +20,23 @@ CONST_DECLS = 2
 FUNC_DECLS = 4
 ENUM_DECLS = 8
 CLASS_DECLS = 16
+ANY_DECLS = VAR_DECLS | CONST_DECLS | FUNC_DECLS | ENUM_DECLS | CLASS_DECLS
 
-# These represent user-declared items in the script.
+# These store info about user-declared items in the script.
 VarDecl = namedtuple("VarDecl", "line, name, type")
 ConstDecl = namedtuple("ConstDecl", "line, name, value")
 FuncDecl = namedtuple("FuncDecl", "line, static, name, args")
 EnumDecl = namedtuple("EnumDecl", "line, name")
 ClassDecl = namedtuple("ClassDecl", "line, name, extends")
 
+# These store parts of a "token chain". See 'get_token_chain()' for more info.
 VariableToken = namedtuple("VariableToken", "name, type")
-ConstantToken = namedtuple("ConstantToken", "name, type, value")
 MethodToken = namedtuple("MethodToken", "name, returns")
 EnumToken = namedtuple("EnumToken", "name, line")
 ClassToken = namedtuple("ClassToken", "name, line")
+# This just acts as a marker with no extra data . Named tuples must have at
+# least one field, which is why this is an empty class instead.
+class SuperAccessorToken: pass
 
 # Parse a user declaration.
 # 'flags' indicates which decl types to look for.
@@ -109,7 +112,7 @@ def iter_decls(start, direction, flags=None):
     if direction != 1 and direction != -1:
         raise ValueError("'direction' must be 1 or -1!")
     if not flags:
-        flags = VAR_DECLS | CONST_DECLS | FUNC_DECLS | ENUM_DECLS | CLASS_DECLS
+        flags = ANY_DECLS
     if direction == 1:
         return _iter_decls_down(start, flags)
     else:
@@ -200,6 +203,38 @@ def _iter_decls_up(start, flags):
         else:
             decls.append(decl)
 
+# Helper function for gathering statically accessible items in classes.
+def iter_static_decls(start, flags):
+    # Vars can't be accessed statically.
+    flags &= ~VAR_DECLS
+    it = iter_decls(start, 1, flags)
+    # The first decl will be the class itself, which we don't need.
+    next(it)
+    for decl in it:
+        # Only yield static funcs
+        if type(decl) is FuncDecl and not decl.static:
+            continue
+        yield decl
+
+# Search for a user decl with a particular name.
+def find_decl(start, name, flags=None):
+    down_search_start = 1
+    for decl in iter_decls(start, -1, flags | CLASS_DECLS):
+        if type(decl) == ClassDecl:
+            if flags & CLASS_DECLS and decl.name == name:
+                return decl
+            else:
+                down_search_start = decl.line
+                break
+        elif decl.name == name:
+            return decl
+    return find_decl_down(down_search_start, name, flags)
+
+def find_decl_down(start, name, flags=None):
+    for decl in iter_decls(start, 1, flags):
+        if decl.name == name:
+            return decl
+
 # Search for the 'extends' keyword and return the name of the extended class.
 def get_extended_class(start=None):
     # Figure out if we're in an inner class and return its extended type if so.
@@ -232,3 +267,125 @@ def get_extended_class(start=None):
         # text is encountered.
         elif not re.match("tool\s+$", line):
             return None
+
+def get_enum_values(line_num):
+    lines = [util.strip_line(line_num, util.get_line(line_num))]
+    line_count = util.get_line_count()
+    while not lines[-1].endswith("}"):
+        line_num += 1
+        if line_num > line_count:
+            return
+        lines.append(util.strip_line(line_num, util.get_line(line_num)))
+    m = re.match(_ENUM_VALUES_PATTERN, "\n".join(lines), re.DOTALL)
+    if m:
+        values = [v.strip() for v in m.group(1).replace("\n", ",").split(",")]
+        def map_value(v):
+            m = re.match("(\w+)(?:\s*=\s*(.*))?", v)
+            if m:
+                return ConstDecl(-1, m.group(1), m.group(2))
+        return list(filter(lambda v: v, map(map_value, values)))
+
+
+# A token chain is a group of tokens chained via dot accessors.
+# "Token" is a loose term referring to anything that produces a value.
+# Example:
+#     texture.get_data().get_pixel()
+# 'texture', 'get_data', and 'get_pixel' all produce values, and are therefore tokens.
+#
+# A token chain is only considered valid if every token has a discernible type.
+def get_token_chain(line, line_num, start_col):
+    i = start_col
+    paren_count = 0
+    is_method = False
+    end_col = None
+
+    # Find the name of the token, skipping over any text in parentheses.
+    while True:
+        i -= 1
+        char = line[i]
+        if char == ")":
+            is_method = True
+            paren_count += 1
+        elif char == "(":
+            paren_count -= 1
+            if paren_count == 0:
+                start_col = i
+                continue
+        if paren_count <= 0 and not (char.isalnum() or char == "_"):
+            end_col = i + 1
+            break
+        elif i == 0:
+            end_col = i
+            break
+    name = line[end_col:start_col]
+
+    if not name:
+        if util.get_syn_attr(col_num=i+1) == "gdString":
+            return [VariableToken(None, "String")]
+        else:
+            #
+            return [SuperAccessorToken()]
+
+    chain = None
+    if line[i] == ".":
+        chain = get_token_chain(line, line_num, i)
+        if not chain:
+            return
+
+    # If this is the beginning of the chain, search global scope.
+    # TODO: search user funcs and vars with type annotations.
+    if (not chain or type(chain[-1]) is SuperAccessorToken) and is_method:
+        extended_class = classes.get_class(get_extended_class(line_num))
+        if extended_class:
+            method = extended_class.get_method(name, search_global=True)
+            if method:
+                return [MethodToken(name, method.returns)]
+    elif not chain or chain[-1].name == "self":
+        if not chain and name == "self":
+            return [VariableToken(name, None)]
+        decl = find_decl(line_num, name, ENUM_DECLS | CLASS_DECLS)
+        if decl:
+            decl_type = type(decl)
+            if decl_type is EnumDecl:
+                return [EnumToken(name, decl.line)]
+            elif decl_type is ClassDecl:
+                return [ClassToken(name, decl.line)]
+        else:
+            extended_class = classes.get_class(get_extended_class(line_num))
+            if extended_class:
+                member = extended_class.get_member(name, search_global=True)
+                if member:
+                    return [VariableToken(name, member.type)]
+    # Not the beginning of a chain, so get the type of the previous token.
+    else:
+        prev_token = chain[-1]
+        prev_token_type = type(prev_token)
+        prev_class = None
+        if prev_token_type is VariableToken:
+            prev_class = classes.get_class(prev_token.type)
+        elif prev_token_type is MethodToken:
+            prev_class = classes.get_class(prev_token.returns)
+        elif prev_token_type is ClassToken:
+            for decl in iter_static_decls(prev_token.line, ANY_DECLS):
+                if decl.name == name:
+                    decl_type = type(decl)
+                    if decl_type is ClassDecl:
+                        chain.append(ClassToken(name, decl.line))
+                        return chain
+                    return
+        if not prev_class:
+            return
+        if is_method:
+            method = prev_class.get_method(name)
+            if method:
+                chain.append(MethodToken(name, method.returns))
+                return chain
+        else:
+            member = prev_class.get_member(name)
+            if member:
+                chain.append(VariableToken(name, member.type))
+                return chain
+
+
+
+

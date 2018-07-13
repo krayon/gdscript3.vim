@@ -82,17 +82,17 @@ def filter(s):
     ignore_case = get_ignore_case()
     return not base or re.match(base, s, re.I if ignore_case else 0)
 
-# Remove a comment from a line.
+# Remove comment and trailing whitespace from a line.
 def strip_line(lnum, line):
     # Check if a comment is present.
     # Since comments extend all the way to the end of the line, all we have to
     # do is check the syntax attribute of the last character.
     if get_syn_attr(lnum, len(line)) != "gdComment":
-        return line
+        return line.rstrip()
     # Search for the start of the comment.
     for i, char in enumerate(line):
         if char == "#" and get_syn_attr(lnum, i+1) == "gdComment":
-            return line[0:i]
+            return line[0:i].rstrip()
 
 # Get the root directory of the current Godot project.
 # Once retrieved, the path is cached indefinitely.

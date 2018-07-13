@@ -64,7 +64,50 @@ def complete_method_signatures():
             append_completion(d)
         c = c.get_inherited_class()
 
-def complete_globals():
+def complete_dot():
+    line_num = util.get_cursor_line_num()
+    line = util.get_line(line_num)
+    col_num = util.get_cursor_col_num()
+    token_chain = script.get_token_chain(line, line_num, col_num-2)
+    if token_chain:
+        last_token = token_chain[-1]
+        last_token_type = type(last_token)
+
+
+        # Complete statically accessible items in user class.
+        if last_token_type is script.ClassToken:
+            for decl in script.iter_static_decls(last_token.line, script.ANY_DECLS):
+                append_completion(build_completion(decl))
+            return
+
+        # Treat 'self' like we're accessing script variables, but exclude globals.
+        if last_token_type is script.VariableToken and last_token.name == "self":
+            complete_script(include_globals=False)
+            return
+
+        # Complete enum values.
+        if last_token_type is script.EnumToken:
+            values = script.get_enum_values(last_token.line)
+            if values:
+                for value in values:
+                    append_completion(build_completion(value))
+            return
+
+        c_name = None
+        flags = None
+        if len(token_chain) == 1 and last_token_type is script.SuperAccessorToken:
+            c_name = script.get_extended_class(line_num)
+            flags = _METHODS
+        elif last_token_type is script.MethodToken:
+            c_name = last_token.returns
+        elif last_token_type is script.VariableToken:
+            c_name = last_token.type
+        if c_name:
+            _add_class_items(classes.get_class(c_name), flags)
+
+# Complete user declared items in the script and items from the extended class.
+# If 'include_globals' is True, add items from global scope.
+def complete_script(include_globals):
     # Complete user decls.
     down_search_start = 1
     for decl in script.iter_decls(util.get_cursor_line_num(), direction=-1):
@@ -81,7 +124,8 @@ def complete_globals():
     _add_class_items(c)
 
     # Complete global scope.
-    _add_class_items(classes.get_global_scope())
+    if include_globals:
+        _add_class_items(classes.get_global_scope())
 
 # Recursively add class items.
 def _add_class_items(c, flags=None):
@@ -89,12 +133,15 @@ def _add_class_items(c, flags=None):
         flags = _MEMBERS | _METHODS | _CONSTANTS
     while c:
         c_name = c.get_name()
-        for member in c.iter_members():
-            append_completion(build_completion(member, c_name))
-        for method in c.iter_methods():
-            append_completion(build_completion(method, c_name))
-        for constant in c.iter_constants():
-            append_completion(build_completion(constant, c_name))
+        if flags & _MEMBERS:
+            for member in c.iter_members():
+                append_completion(build_completion(member, c_name))
+        if flags & _METHODS:
+            for method in c.iter_methods():
+                append_completion(build_completion(method, c_name))
+        if flags & _CONSTANTS:
+            for constant in c.iter_constants():
+                append_completion(build_completion(constant, c_name))
         c = c.get_inherited_class()
 
 # Generic function for building completion dicts.
@@ -107,14 +154,15 @@ def build_completion(item, c_name=None):
     elif item.name:
         if not util.filter(item.name):
             return
-        d["word"] = item.name
 
         # Built-in
         if t is classes.GodotMember:
+            d["word"] = item.name
             if c_name:
                 d["abbr"] = "{}.{}".format(c_name, item.name)
             d["kind"] = item.type
         elif t is classes.GodotConstant:
+            d["word"] = item.name
             if c_name:
                 d["abbr"] = "{}.{} = {}".format(c_name, item.name, item.value)
             else:
@@ -122,6 +170,10 @@ def build_completion(item, c_name=None):
             if item.type:
                 d["kind"] = item.type
         elif t is classes.GodotMethod:
+            if len(item.args) > 0:
+                d["word"] = "{}(".format(item.name)
+            else:
+                d["word"] = "{}()".format(item.name)
             args = ", ".join(map(lambda a: "{} {}".format(a.type, a.name), item.args))
             qualifiers = " {}".format(item.qualifiers) if item.qualifiers else ""
             if c_name:
@@ -137,7 +189,8 @@ def build_completion(item, c_name=None):
                 d["kind"] = item.type
         elif t is script.ConstDecl:
             d["word"] = item.name
-            d["abbr"] = "{} = {}".format(item.name, item.value)
+            if item.value:
+                d["abbr"] = "{} = {}".format(item.name, item.value)
         elif t is script.FuncDecl:
             if len(item.args) > 0:
                 d["word"] = "{}(".format(item.name)
@@ -145,8 +198,10 @@ def build_completion(item, c_name=None):
                 d["word"] = "{}()".format(item.name)
             d["abbr"] = "{}({})".format(item.name, ", ".join(item.args))
         elif t is script.EnumDecl:
+            d["word"] = item.name
             d["kind"] = "enum"
         elif t is script.ClassDecl:
+            d["word"] = item.name
             d["kind"] = "class"
     if not d:
         return

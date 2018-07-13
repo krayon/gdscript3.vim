@@ -25,8 +25,10 @@ def gdscript_complete():
         completer.complete_class_names(classes.EXPORTABLE)
     elif re.match("\s*func", line):
         completer.complete_method_signatures()
+    elif line and line[-1] == ".":
+        completer.complete_dot()
     else:
-        completer.complete_globals()
+        completer.complete_script(include_globals=True)
 
     completions = completer.get_completions()
     vim.command("let gdscript_completions = " + str(completions))
