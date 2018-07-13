@@ -17,42 +17,6 @@
   "methods":[
     {
       "returns":"Rect2",
-      "name":"Rect2",
-      "args":[
-        {
-          "name":"position",
-          "type":"Vector2"
-        },
-        {
-          "name":"size",
-          "type":"Vector2"
-        }
-      ]
-    },
-    {
-      "returns":"Rect2",
-      "name":"Rect2",
-      "args":[
-        {
-          "name":"x",
-          "type":"float"
-        },
-        {
-          "name":"y",
-          "type":"float"
-        },
-        {
-          "name":"width",
-          "type":"float"
-        },
-        {
-          "name":"height",
-          "type":"float"
-        }
-      ]
-    },
-    {
-      "returns":"Rect2",
       "name":"abs"
     },
     {

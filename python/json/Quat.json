@@ -21,52 +21,6 @@
   "methods":[
     {
       "returns":"Quat",
-      "name":"Quat",
-      "args":[
-        {
-          "name":"x",
-          "type":"float"
-        },
-        {
-          "name":"y",
-          "type":"float"
-        },
-        {
-          "name":"z",
-          "type":"float"
-        },
-        {
-          "name":"w",
-          "type":"float"
-        }
-      ]
-    },
-    {
-      "returns":"Quat",
-      "name":"Quat",
-      "args":[
-        {
-          "name":"axis",
-          "type":"Vector3"
-        },
-        {
-          "name":"angle",
-          "type":"float"
-        }
-      ]
-    },
-    {
-      "returns":"Quat",
-      "name":"Quat",
-      "args":[
-        {
-          "name":"from",
-          "type":"Basis"
-        }
-      ]
-    },
-    {
-      "returns":"Quat",
       "name":"cubic_slerp",
       "args":[
         {

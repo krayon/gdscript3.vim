@@ -3,16 +3,6 @@
   "constants":[],
   "methods":[
     {
-      "returns":"PoolVector3Array",
-      "name":"PoolVector3Array",
-      "args":[
-        {
-          "name":"from",
-          "type":"Array"
-        }
-      ]
-    },
-    {
       "returns":"void",
       "name":"append",
       "args":[

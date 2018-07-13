@@ -16,20 +16,6 @@
   "constants":[],
   "methods":[
     {
-      "returns":"AABB",
-      "name":"AABB",
-      "args":[
-        {
-          "name":"position",
-          "type":"Vector3"
-        },
-        {
-          "name":"size",
-          "type":"Vector3"
-        }
-      ]
-    },
-    {
       "returns":"bool",
       "name":"encloses",
       "args":[

@@ -16,58 +16,6 @@
   "constants":[],
   "methods":[
     {
-      "returns":"Basis",
-      "name":"Basis",
-      "args":[
-        {
-          "name":"from",
-          "type":"Quat"
-        }
-      ]
-    },
-    {
-      "returns":"Basis",
-      "name":"Basis",
-      "args":[
-        {
-          "name":"from",
-          "type":"Vector3"
-        }
-      ]
-    },
-    {
-      "returns":"Basis",
-      "name":"Basis",
-      "args":[
-        {
-          "name":"axis",
-          "type":"Vector3"
-        },
-        {
-          "name":"phi",
-          "type":"float"
-        }
-      ]
-    },
-    {
-      "returns":"Basis",
-      "name":"Basis",
-      "args":[
-        {
-          "name":"x_axis",
-          "type":"Vector3"
-        },
-        {
-          "name":"y_axis",
-          "type":"Vector3"
-        },
-        {
-          "name":"z_axis",
-          "type":"Vector3"
-        }
-      ]
-    },
-    {
       "returns":"float",
       "name":"determinant"
     },

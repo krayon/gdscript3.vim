@@ -49,66 +49,6 @@
   "methods":[
     {
       "returns":"Color",
-      "name":"Color",
-      "args":[
-        {
-          "name":"r",
-          "type":"float"
-        },
-        {
-          "name":"g",
-          "type":"float"
-        },
-        {
-          "name":"b",
-          "type":"float"
-        },
-        {
-          "name":"a",
-          "type":"float"
-        }
-      ]
-    },
-    {
-      "returns":"Color",
-      "name":"Color",
-      "args":[
-        {
-          "name":"r",
-          "type":"float"
-        },
-        {
-          "name":"g",
-          "type":"float"
-        },
-        {
-          "name":"b",
-          "type":"float"
-        }
-      ]
-    },
-    {
-      "returns":"Color",
-      "name":"Color",
-      "args":[
-        {
-          "name":"from",
-          "type":"int"
-        }
-      ]
-    },
-    {
-      "returns":"Color",
-      "name":"Color",
-      "args":[
-        {
-          "name":"from",
-          "type":"String"
-        }
-      ]
-    },
-    {
-      "returns":"Color",
       "name":"blend",
       "args":[
         {

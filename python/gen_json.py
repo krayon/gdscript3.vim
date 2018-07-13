@@ -37,6 +37,7 @@ JSON_DIR = SCRIPT_DIR + "json/"
 
 classes = []
 class_info = []
+constructors = []
 
 def dump(obj, path):
     out = open(JSON_DIR + path, "w")
@@ -78,7 +79,10 @@ def xml_to_json(path):
                 method["name"] = attrib["name"]
                 if "qualifiers" in attrib:
                     method["qualifiers"] = attrib["qualifiers"]
-                c["methods"].append(method)
+                if method["name"] == c["name"]:
+                    constructors.append(method)
+                else:
+                    c["methods"].append(method)
                 current_method = method
             elif tag == "argument":
                 if not current_method:
@@ -114,14 +118,6 @@ def is_exportable(c):
 for f in os.listdir(JSON_DIR):
     os.remove(JSON_DIR + f)
 
-# Combine global scope items into a single "class".
-global_scope = xml_to_json(DOCS_DIR + "@GlobalScope.xml")[0]
-gdscript = xml_to_json(DOCS_DIR + "@GDScript.xml")[0]
-global_scope["members"].extend(gdscript["members"])
-global_scope["constants"].extend(gdscript["constants"])
-global_scope["methods"].extend(gdscript["methods"])
-global_scope["name"] = None
-
 # Gather classes.
 for f in os.listdir(DOCS_DIR):
     if f.endswith(".xml") and not f.startswith("@"):
@@ -132,6 +128,16 @@ for f in os.listdir(DOCS_DIR):
 
 classes.sort(key=lambda c: c["name"])
 class_info.sort(key=lambda c: c["name"])
+
+# Combine global scope items into a single "class".
+global_scope = xml_to_json(DOCS_DIR + "@GlobalScope.xml")[0]
+gdscript = xml_to_json(DOCS_DIR + "@GDScript.xml")[0]
+global_scope["members"].extend(gdscript["members"])
+global_scope["constants"].extend(gdscript["constants"])
+global_scope["methods"].extend(gdscript["methods"])
+global_scope["methods"].extend(constructors)
+global_scope["methods"].sort(key=lambda m: m["name"])
+global_scope["name"] = None
 
 # Gather extra class info
 for c in classes:

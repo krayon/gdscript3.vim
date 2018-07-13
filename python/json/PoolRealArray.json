@@ -3,16 +3,6 @@
   "constants":[],
   "methods":[
     {
-      "returns":"PoolRealArray",
-      "name":"PoolRealArray",
-      "args":[
-        {
-          "name":"from",
-          "type":"Array"
-        }
-      ]
-    },
-    {
       "returns":"void",
       "name":"append",
       "args":[

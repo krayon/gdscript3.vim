@@ -13,20 +13,6 @@
   "methods":[
     {
       "returns":"Vector2",
-      "name":"Vector2",
-      "args":[
-        {
-          "name":"x",
-          "type":"float"
-        },
-        {
-          "name":"y",
-          "type":"float"
-        }
-      ]
-    },
-    {
-      "returns":"Vector2",
       "name":"abs"
     },
     {

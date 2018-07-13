@@ -3,16 +3,6 @@
   "constants":[],
   "methods":[
     {
-      "returns":"PoolColorArray",
-      "name":"PoolColorArray",
-      "args":[
-        {
-          "name":"from",
-          "type":"Array"
-        }
-      ]
-    },
-    {
       "returns":"void",
       "name":"append",
       "args":[

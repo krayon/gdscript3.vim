@@ -4,16 +4,6 @@
   "methods":[
     {
       "returns":"NodePath",
-      "name":"NodePath",
-      "args":[
-        {
-          "name":"from",
-          "type":"String"
-        }
-      ]
-    },
-    {
-      "returns":"NodePath",
       "name":"get_as_property_path"
     },
     {

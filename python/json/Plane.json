@@ -24,60 +24,6 @@
   "constants":[],
   "methods":[
     {
-      "returns":"Plane",
-      "name":"Plane",
-      "args":[
-        {
-          "name":"a",
-          "type":"float"
-        },
-        {
-          "name":"b",
-          "type":"float"
-        },
-        {
-          "name":"c",
-          "type":"float"
-        },
-        {
-          "name":"d",
-          "type":"float"
-        }
-      ]
-    },
-    {
-      "returns":"Plane",
-      "name":"Plane",
-      "args":[
-        {
-          "name":"v1",
-          "type":"Vector3"
-        },
-        {
-          "name":"v2",
-          "type":"Vector3"
-        },
-        {
-          "name":"v3",
-          "type":"Vector3"
-        }
-      ]
-    },
-    {
-      "returns":"Plane",
-      "name":"Plane",
-      "args":[
-        {
-          "name":"normal",
-          "type":"Vector3"
-        },
-        {
-          "name":"d",
-          "type":"float"
-        }
-      ]
-    },
-    {
       "returns":"Vector3",
       "name":"center"
     },

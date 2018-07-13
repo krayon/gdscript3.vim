@@ -17,48 +17,6 @@
   "methods":[
     {
       "returns":"Transform2D",
-      "name":"Transform2D",
-      "args":[
-        {
-          "name":"from",
-          "type":"Transform"
-        }
-      ]
-    },
-    {
-      "returns":"Transform2D",
-      "name":"Transform2D",
-      "args":[
-        {
-          "name":"x_axis",
-          "type":"Vector2"
-        },
-        {
-          "name":"y_axis",
-          "type":"Vector2"
-        },
-        {
-          "name":"origin",
-          "type":"Vector2"
-        }
-      ]
-    },
-    {
-      "returns":"Transform2D",
-      "name":"Transform2D",
-      "args":[
-        {
-          "name":"rotation",
-          "type":"float"
-        },
-        {
-          "name":"position",
-          "type":"Vector2"
-        }
-      ]
-    },
-    {
-      "returns":"Transform2D",
       "name":"affine_inverse"
     },
     {

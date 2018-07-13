@@ -1,38 +1,7 @@
 {
   "members":[],
   "constants":[],
-  "methods":[
-    {
-      "returns":"float",
-      "name":"float",
-      "args":[
-        {
-          "name":"from",
-          "type":"bool"
-        }
-      ]
-    },
-    {
-      "returns":"float",
-      "name":"float",
-      "args":[
-        {
-          "name":"from",
-          "type":"int"
-        }
-      ]
-    },
-    {
-      "returns":"float",
-      "name":"float",
-      "args":[
-        {
-          "name":"from",
-          "type":"String"
-        }
-      ]
-    }
-  ],
+  "methods":[],
   "name":"float",
   "inherits":null
 }

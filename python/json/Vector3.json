@@ -30,24 +30,6 @@
   "methods":[
     {
       "returns":"Vector3",
-      "name":"Vector3",
-      "args":[
-        {
-          "name":"x",
-          "type":"float"
-        },
-        {
-          "name":"y",
-          "type":"float"
-        },
-        {
-          "name":"z",
-          "type":"float"
-        }
-      ]
-    },
-    {
-      "returns":"Vector3",
       "name":"abs"
     },
     {
