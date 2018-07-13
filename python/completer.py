@@ -73,11 +73,15 @@ def complete_dot():
         last_token = token_chain[-1]
         last_token_type = type(last_token)
 
-
-        # Complete statically accessible items in user class.
+        # Complete statically accessible items in classes.
         if last_token_type is script.ClassToken:
-            for decl in script.iter_static_decls(last_token.line, script.ANY_DECLS):
-                append_completion(build_completion(decl))
+            if last_token.line == -1:
+                # Class is defined by Godot.
+                c = classes.get_class(last_token.name)
+                _add_class_items(c, _CONSTANTS)
+            else:
+                for decl in script.iter_static_decls(last_token.line, script.ANY_DECLS):
+                    append_completion(build_completion(decl))
             return
 
         # Treat 'self' like we're accessing script variables, but exclude globals.

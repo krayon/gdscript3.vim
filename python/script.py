@@ -355,6 +355,9 @@ def get_token_chain(line, line_num, start_col):
                 member = extended_class.get_member(name, search_global=True)
                 if member:
                     return [VariableToken(name, member.type)]
+            c = classes.get_class(name)
+            if c:
+                return [ClassToken(name, -1)]
     # Not the beginning of a chain, so get the type of the previous token.
     else:
         prev_token = chain[-1]
