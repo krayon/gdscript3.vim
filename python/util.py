@@ -17,7 +17,7 @@ _ignore_case = None
 
 _project_dir = None
 
-def clear_cursor_cache():
+def clear_cache():
     global _cursor_line_num
     global _cursor_col_num
     global _base

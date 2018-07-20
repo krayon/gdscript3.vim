@@ -10,7 +10,7 @@ import classes
 import script
 
 def gdscript_complete():
-    util.clear_cursor_cache()
+    util.clear_cache()
     completer.clear_completions()
 
     line = util.get_line()[0:util.get_cursor_col_num()]
