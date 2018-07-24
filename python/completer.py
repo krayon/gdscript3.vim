@@ -59,6 +59,8 @@ def complete_method_signatures():
     while c:
         for method in c.iter_methods():
             d = build_completion(method, c.get_name())
+            if not d:
+                continue
             mapped_args = map(lambda a: a.name, method.args)
             d["word"] = "{}({}):".format(method.name, ", ".join(mapped_args))
             append_completion(d)
