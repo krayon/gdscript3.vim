@@ -65,6 +65,19 @@ endif
 " SuperTab
 let g:SuperTabDefaultCompletionType = "<c-x><c-o>"
 
+" YouCompleteMe
+if !exists('g:ycm_semantic_triggers')
+    let g:ycm_semantic_triggers = {}
+endif
+let g:ycm_semantic_triggers.gdscript3 = [
+    \'re!\w+',
+    \'.',
+    \'re!\bextends\s+',
+    \'re!\bexport\(',
+    \'re!\bfunc\s+',
+    \'re!"res://[^"]*'
+    \]
+
 
 
 " Configure echodoc
