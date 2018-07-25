@@ -85,6 +85,13 @@ def echodoc_search():
         echodoc.append(d)
         if arg_count - 1 > i:
             echodoc.append({"text": ", "})
+    if tokens[-1].qualifiers and "vararg" in tokens[-1].qualifiers:
+        if arg_count > 0:
+            echodoc.append({"text": ", "})
+        d = { "text": "..." }
+        if arg_hl_index >= arg_count:
+            d["highlight"] = hl_arguments
+        echodoc.append(d)
     echodoc.append({"text": ")"})
 
     vim.command("let echodoc_search_result = {}".format(str(echodoc)))

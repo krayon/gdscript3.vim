@@ -184,12 +184,15 @@ def build_completion(item, c_name=None):
                 d["word"] = "{}(".format(item.name)
             else:
                 d["word"] = "{}()".format(item.name)
-            args = ", ".join(map(lambda a: "{} {}".format(a.type, a.name), item.args))
+            args = list(map(lambda a: "{} {}".format(a.type, a.name), item.args))
             qualifiers = " {}".format(item.qualifiers) if item.qualifiers else ""
+            if "vararg" in qualifiers:
+                args.append("...")
+            joined_args = ", ".join(args)
             if c_name:
-                d["abbr"] = "{}.{}({}){}".format(c_name, item.name, args, qualifiers)
+                d["abbr"] = "{}.{}({}){}".format(c_name, item.name, joined_args, qualifiers)
             else:
-                d["abbr"] = "{}({}){}".format(item.name, args, qualifiers)
+                d["abbr"] = "{}({}){}".format(item.name, joined_args, qualifiers)
             d["kind"] = item.returns
 
         # User decls
