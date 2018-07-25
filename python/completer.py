@@ -216,4 +216,6 @@ def build_completion(item, c_name=None):
     if not d:
         return
     d["dup"] = 1
+    if util.get_ignore_case():
+        d["icase"] = 1
     return d
