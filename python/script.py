@@ -333,7 +333,7 @@ def get_token_chain(line, line_num, start_col):
 
     # If this is the beginning of the chain, search global scope.
     # TODO: search user funcs and vars with type annotations.
-    if (not chain or type(chain[-1]) is SuperAccessorToken) and is_method:
+    if (not chain or type(chain[-1]) is SuperAccessorToken or chain[-1].name == "self") and is_method:
         extended_class = classes.get_class(get_extended_class(line_num))
         if extended_class:
             method = extended_class.get_method(name, search_global=True)
