@@ -31,7 +31,7 @@ ClassDecl = namedtuple("ClassDecl", "line, name, extends")
 
 # These store parts of a "token chain". See 'get_token_chain()' for more info.
 VariableToken = namedtuple("VariableToken", "name, type")
-MethodToken = namedtuple("MethodToken", "name, returns")
+MethodToken = namedtuple("MethodToken", "name, returns, args")
 EnumToken = namedtuple("EnumToken", "name, line")
 ClassToken = namedtuple("ClassToken", "name, line")
 # This just acts as a marker with no extra data . Named tuples must have at
@@ -338,7 +338,10 @@ def get_token_chain(line, line_num, start_col):
         if extended_class:
             method = extended_class.get_method(name, search_global=True)
             if method:
-                return [MethodToken(name, method.returns)]
+                return [MethodToken(name, method.returns, method.args)]
+            decl = find_decl(line_num, name, FUNC_DECLS)
+            if decl:
+                return [MethodToken(name, None, decl.args)]
     elif not chain or chain[-1].name == "self":
         if not chain and name == "self":
             return [VariableToken(name, None)]
@@ -371,7 +374,7 @@ def get_token_chain(line, line_num, start_col):
             if is_method and name == "new":
                 if not (prev_token.line == -1 and
                         classes.get_class(prev_token.name).is_built_in()):
-                    chain.append(MethodToken(name, prev_token.name))
+                    chain.append(MethodToken(name, prev_token.name, None))
                     return chain
             for decl in iter_static_decls(prev_token.line, ANY_DECLS):
                 if decl.name == name:
@@ -379,13 +382,16 @@ def get_token_chain(line, line_num, start_col):
                     if decl_type is ClassDecl:
                         chain.append(ClassToken(name, decl.line))
                         return chain
+                    elif decl_type is FuncDecl and decl.static:
+                        chain.append(MethodToken(name, None, decl.args))
+                        return chain
                     return
         if not prev_class:
             return
         if is_method:
             method = prev_class.get_method(name)
             if method:
-                chain.append(MethodToken(name, method.returns))
+                chain.append(MethodToken(name, method.returns, method.args))
                 return chain
         else:
             member = prev_class.get_member(name)

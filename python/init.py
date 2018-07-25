@@ -33,6 +33,58 @@ def gdscript_complete():
     completions = completer.get_completions()
     vim.command("let gdscript_completions = " + str(completions))
 
-# TODO: implement
 def echodoc_search():
-    pass
+    util.clear_cache()
+
+    text = vim.eval("a:text")
+    text_len = len(text)
+    if text_len == 0:
+        return
+
+    m = re.match("\w+", text)
+    if not m:
+        return
+    method_name = m.group(0)
+
+    chain_start = util.get_cursor_col_num() - text_len - 1
+    line_num = util.get_cursor_line_num()
+    line = util.get_line(line_num)[:chain_start]
+    line = "{}{}()".format(line, method_name)
+
+    method_args = None
+    tokens = script.get_token_chain(line, line_num, len(line))
+    if tokens and type(tokens[-1]) is script.MethodToken:
+        method_args = tokens[-1].args
+    else:
+        return
+
+    hl_identifier = vim.eval("g:echodoc#highlight_identifier")
+    hl_arguments = vim.eval("g:echodoc#highlight_arguments")
+    arg_hl_index = 0
+    paren_count = 0
+    for char in text[len(m.group(0))+1:]:
+        if char == "(":
+            paren_count += 1
+        elif char == ")":
+            paren_count -= 1
+        elif char == "," and paren_count <= 0:
+            arg_hl_index += 1
+
+    echodoc = [
+        { "text": method_name, "highlight": hl_identifier },
+        { "text": "(" }
+    ]
+
+    arg_count = len(method_args)
+    for (i, arg) in enumerate(method_args):
+        if arg.type:
+            echodoc.append({"text": "{} ".format(arg.type), "highlight": "gdClass"})
+        d = { "text": arg.name }
+        if arg_hl_index == i:
+            d["highlight"] = hl_arguments
+        echodoc.append(d)
+        if arg_count - 1 > i:
+            echodoc.append({"text": ", "})
+    echodoc.append({"text": ")"})
+
+    vim.command("let echodoc_search_result = {}".format(str(echodoc)))
