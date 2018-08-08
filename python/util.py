@@ -63,7 +63,7 @@ def get_indent(line_num):
     cur_col_num = get_cursor_col_num()
     indent = int(vim.eval("indent({})".format(line_num)))
     if line_num == cur_line_num and cur_col_num < indent:
-        return cursor_col_num
+        return cur_col_num
     else:
         return indent
 
