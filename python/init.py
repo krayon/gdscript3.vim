@@ -13,7 +13,7 @@ def gdscript_complete():
     util.clear_cache()
     completer.clear_completions()
 
-    line = util.get_line()[0:util.get_cursor_col_num()]
+    line = util.get_line()[0:util.get_cursor_col_num() - 1]
     syn_attr = util.get_syn_attr()
     if syn_attr == "gdComment":
         return
