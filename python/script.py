@@ -264,7 +264,7 @@ def get_extended_class(start_line=None):
             return m.group(1)
         # Only 'tool' can appear before 'extends', so stop searching if any other
         # text is encountered.
-        elif not re.match("tool\s+$", line):
+        elif not re.match("tool\s*$", line):
             return None
 
 def get_enum_values(line_num):
