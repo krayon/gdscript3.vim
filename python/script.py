@@ -258,13 +258,13 @@ def get_extended_class(start_line=None):
 
     # Search for 'extends' at the top of the file.
     for lnum in range(1, util.get_line_count()):
-        line = util.get_line(lnum)
+        line = util.get_line(lnum).rstrip()
         m = re.match("extends\s+(\w+)", line)
         if m:
             return m.group(1)
         # Only 'tool' can appear before 'extends', so stop searching if any other
         # text is encountered.
-        elif not re.match("tool\s*$", line):
+        elif line and not re.match("tool\s*$", line) and not re.match("\s*\#", line):
             return None
 
 def get_enum_values(line_num):
