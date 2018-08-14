@@ -135,6 +135,7 @@ def complete_script(include_globals):
 
     # Complete global scope.
     if include_globals:
+        complete_class_names(classes.EXTENDABLE)
         _add_class_items(classes.get_global_scope())
 
 # Recursively add class items.

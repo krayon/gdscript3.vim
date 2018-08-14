@@ -136,10 +136,6 @@ def get_global_scope():
         _global_scope = _load_class("@GlobalScope")
     return _global_scope
 
-def iter_class_names():
-    _load_class_info()
-    return iter(_class_names)
-
 def iter_class_names(type=0):
     _load_class_info()
     def filter_fun(c):
