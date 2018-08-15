@@ -26,7 +26,8 @@ def append_completion(completion):
         _completions.append(completion)
 
 def complete_paths():
-    m = re.search("res://(((\w|-)+/)*)$", util.get_line())
+    line = util.get_line()[0:util.get_cursor_col_num() - 1]
+    m = re.search("res://(((\w|-)+/)*)$", line)
     if m:
         project_dir = util.get_project_dir()
         if not project_dir:
