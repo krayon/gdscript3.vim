@@ -14,8 +14,10 @@ syn keyword gdOperator    and or not is in
 syn match   gdOperator    "\V&&\|||\|!\|&\|^\||\|~\|*\|/\|%\|+\|-\|=\|<\|>"
 syn match   gdDelimiter   "\V(\|)\|[\|]\|{\|}"
 syn keyword gdStatement   break continue pass return
-syn keyword gdKeyword     class extends tool signal func self
-                        \ static const enum var onready export setget
+syn keyword gdKeyword     extends tool signal self
+                        \ const enum var onready export setget
+syn match   gdKeyword     "\v^\s*((static\s*)=func|class)"
+                        \ nextgroup=gdFunction skipwhite
 syn keyword gdBoolean     true false
 
 syn match   gdMember   "\v<(\.)@<=[a-z_]+\w*>"
@@ -49,6 +51,17 @@ syn match   gdExponent    "\v(\d*\.=\d+)@<=e-=\d+>"
 
 syn match   gdComment "\v#.*$"
 syn keyword gdTodo    TODO FIXME XXX NOTE BUG HACK OPTIMIZE containedin=gdComment
+
+syn region gdFunctionFold
+  \ start="\v^\z(\s*)%(%(static\s+)=func|class)>"
+  \ end="\v\ze%(\s*\n)+%(\z1\s)@!."
+  \ fold transparent
+
+syn region gdFold
+  \ matchgroup=gdComment
+  \ start='#.*{{{.*$'
+  \ end='#.*}}}.*$'
+  \ fold transparent
 
 hi def link gdConditional Conditional
 hi def link gdRepeat      Repeat
