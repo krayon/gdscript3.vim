@@ -85,7 +85,7 @@ def _args_to_vars(func_decl):
 
     for i, arg in enumerate(func_decl.args):
         arg_type = None
-        if method:
+        if method and len(method.args) > i:
             method_arg = method.args[i]
             if method_arg:
                 arg_type = method_arg.type
