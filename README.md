@@ -1,3 +1,7 @@
+# Fork
+
+This project was originally located at [calviken/vim-gdscript3](https://github.com/calviken/vim-gdscript3) however that now appears to be gone :(
+
 # Description
 GDScript is the primary scripting language used by the [Godot Game Engine](https://godotengine.org/).
 
