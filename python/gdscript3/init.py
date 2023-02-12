@@ -2,7 +2,7 @@ import sys
 import re
 import vim
 
-sys.path.append(vim.eval("expand('<sfile>:p:h')") + "/../python/")
+sys.path.append(vim.eval("expand('<sfile>:p:h')") + "/../python/gdscript3/")
 
 import util
 import completer

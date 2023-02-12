@@ -14,7 +14,7 @@ _class_names = None
 
 _global_scope = None
 
-_JSON_DIR = vim.eval("expand('<sfile>:p:h')") + "/../python/json/"
+_JSON_DIR = vim.eval("expand('<sfile>:p:h')") + "/../python/gdscript3/json/"
 
 GodotMember = namedtuple("GodotMember", "name, type")
 GodotConstant = namedtuple("GodotConstant", "name, value, type")
